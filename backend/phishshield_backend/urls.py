@@ -30,6 +30,8 @@ urlpatterns = [
     path('api/chat/', ChatMessageListCreateView.as_view(), name='chat_api'),
     # Add this inside the urlpatterns list:
     path('api/lms/', include('lms_content.urls')),
+    # Add this inside the urlpatterns list:
+    path('api/simulation/', include('simulation.urls')),
 ]
 
 if settings.DEBUG:
