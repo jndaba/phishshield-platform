@@ -1,5 +1,5 @@
 import React, { useContext } from 'react';
-import { Shield, Home, Search, Mail, BookOpen, ShieldAlert, LogOut, ExternalLink } from 'lucide-react';
+import { Shield, Home, Search, Mail, BookOpen, ShieldAlert, Award, LogOut } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 
@@ -13,9 +13,9 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="w-64 bg-[#102A36] text-slate-300 flex flex-col justify-between border-r border-slate-800">
+    <aside className="w-64 bg-[#102A36] text-slate-300 flex flex-col justify-between border-r border-slate-800 shrink-0">
       <div>
-        {/* Brand */}
+        {/* Brand Header */}
         <div className="p-6 border-b border-slate-800/80 flex items-center gap-3">
           <div className="p-1.5 bg-teal-500 rounded-lg text-slate-950 font-bold">
             <Shield className="w-5 h-5 text-white" />
@@ -26,7 +26,7 @@ export default function Sidebar() {
           </div>
         </div>
 
-        {/* Workspace Menu */}
+        {/* Workspace Navigation */}
         <div className="px-4 py-6">
           <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase px-3 block mb-3">Workspace</span>
           <nav className="space-y-1.5 text-xs font-medium">
@@ -59,6 +59,13 @@ export default function Sidebar() {
               <BookOpen className="w-4 h-4" /> Learning lab
             </NavLink>
 
+            <NavLink
+              to="/certificates"
+              className={({ isActive }) => `flex items-center gap-3 px-3 py-2.5 rounded-lg transition ${isActive ? 'bg-[#2DD4BF] text-slate-950 font-bold' : 'text-slate-300 hover:bg-slate-800/60 hover:text-white'}`}
+            >
+              <Award className="w-4 h-4" /> Certificates
+            </NavLink>
+
             {user?.is_admin && (
               <NavLink
                 to="/admin-console"
@@ -70,7 +77,7 @@ export default function Sidebar() {
           </nav>
         </div>
 
-        {/* Readiness Score Pill */}
+        {/* Dynamic Readiness Score Widget */}
         <div className="mx-4 p-4 bg-[#133544] rounded-xl border border-teal-900/40">
           <div className="flex justify-between items-center mb-1">
             <span className="text-[11px] font-semibold text-slate-300">Readiness score</span>
@@ -90,7 +97,7 @@ export default function Sidebar() {
             {user?.username?.substring(0, 2).toUpperCase() || 'AM'}
           </div>
           <div className="truncate">
-            <p className="text-xs font-semibold text-white truncate">{user?.username || 'Alex Rivera'}</p>
+            <p className="text-xs font-semibold text-white truncate">{user?.username || 'Learner Session'}</p>
             <p className="text-[10px] text-slate-400 truncate">{user?.is_admin ? 'Administrator' : 'Learner'}</p>
           </div>
         </div>

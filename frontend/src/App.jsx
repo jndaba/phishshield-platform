@@ -17,6 +17,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import Certificates from './pages/Certificates';
 
 // Layout wrapper for authenticated pages
 const ProtectedLayout = () => {
@@ -44,6 +45,7 @@ const ProtectedLayout = () => {
           <Route path="/admin/users" element={user.is_admin ? <AdminUsers /> : <Navigate to="/" replace />} />
           <Route path="/assessment" element={<Assessment />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/certificates" element={<Certificates />} />
         </Routes>
       </main>
     </div>

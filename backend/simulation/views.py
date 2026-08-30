@@ -17,7 +17,6 @@ class SimulationEmailListCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.AllowAny]
 
     def get_queryset(self):
-        # Auto-seed initial realistic phishing & safe emails if database is empty
         if not SimulationEmail.objects.exists():
             SimulationEmail.objects.create(
                 sender_name="M-Pesa Business Notifications",
@@ -98,7 +97,6 @@ class RecordSimulationAttemptView(APIView):
             time_taken_seconds=request.data.get('time_taken', 10)
         )
 
-        # Audit trail logging
         ActivityAudit.objects.create(
             user=request.user,
             title=f"Simulation: {email.subject[:35]}...",
@@ -107,7 +105,6 @@ class RecordSimulationAttemptView(APIView):
             risk_score="0%" if is_correct else "High"
         )
 
-        # Update readiness score
         profile = request.user.profile
         profile.simulations_completed += 1
         if is_correct and profile.readiness_score < 100:
@@ -127,33 +124,109 @@ class RecordSimulationAttemptView(APIView):
 # 2. Quiz Assessments & PDF Certificate Generation
 # ----------------------------------------------------
 
+EXPANDED_10_QUESTIONS = [
+    {
+        "question": "Which indicator most reliably flags a sophisticated spear-phishing attack?",
+        "option_a": "The email subject line is written in all lowercase letters.",
+        "option_b": "Urgent executive call-to-action paired with an external lookalike sender domain.",
+        "option_c": "The email has a footer offering an unsubscribe link.",
+        "option_d": "The message was delivered over a weekend.",
+        "correct_option": "B",
+        "explanation": "Attackers leverage urgency with spoofed or lookalike domains to bypass casual scrutiny."
+    },
+    {
+        "question": "What is the primary objective of an Adversary-in-the-Middle (AiTM) phishing proxy?",
+        "option_a": "To infect the victim's router with ransomware directly.",
+        "option_b": "To intercept user credentials and authenticated session cookies in real-time.",
+        "option_c": "To modify the CSS layout of legitimate websites permanently.",
+        "option_d": "To automatically format the operating system hard drive.",
+        "correct_option": "B",
+        "explanation": "AiTM reverse proxies sit between the user and actual login service to steal session cookies, bypassing legacy 2FA."
+    },
+    {
+        "question": "If you receive an SMS regarding an M-Pesa transaction reversal asking for authentication, what should you do?",
+        "option_a": "Click the provided link to reject the transaction immediately.",
+        "option_b": "Reply to the SMS with your M-Pesa PIN.",
+        "option_c": "Ignore the link and check your official M-Pesa app or call customer support directly.",
+        "option_d": "Forward the link to all your contacts for verification.",
+        "correct_option": "C",
+        "explanation": "Never click unverified links in SMS; verify balances independently through official channels."
+    },
+    {
+        "question": "What is an IDN Homograph attack in phishing URLs?",
+        "option_a": "A DDoS attack targeting university DNS servers.",
+        "option_b": "Using Cyrillic or unicode characters that look visually identical to Latin alphabet characters.",
+        "option_c": "Attaching encrypted ZIP files containing worms.",
+        "option_d": "Injecting SQL queries into the search bar.",
+        "correct_option": "B",
+        "explanation": "Homograph exploits register lookalike unicode characters to trick users into believing a fake domain is legitimate."
+    },
+    {
+        "question": "What makes Quishing (QR code phishing) dangerous to traditional network gateways?",
+        "option_a": "QR codes can only be scanned on Android devices.",
+        "option_b": "The malicious destination URL is embedded inside an image, bypassing standard email text filters.",
+        "option_c": "QR codes disable computer firewalls automatically.",
+        "option_d": "They delete the recipient's mailbox inbox.",
+        "correct_option": "B",
+        "explanation": "Image-based QR codes conceal malicious strings from basic text-based email security filters."
+    },
+    {
+        "question": "What immediate action should be taken after submitting credentials to a suspicious phishing page?",
+        "option_a": "Wait 48 hours to check if unauthorized charges appear.",
+        "option_b": "Clear the browser cache and restart your computer.",
+        "option_c": "Immediately change master passwords, revoke active login sessions, and alert IT security.",
+        "option_d": "Reply to the original email asking for confirmation.",
+        "correct_option": "C",
+        "explanation": "Revoking session tokens and updating passwords prevents attackers from leveraging captured credentials."
+    },
+    {
+        "question": "What security mechanism protects domain owners by instructing email servers to reject unauthenticated mail?",
+        "option_a": "HTTP / TLS 1.3",
+        "option_b": "DMARC (Domain-based Message Authentication, Reporting, and Conformance)",
+        "option_c": "FTP over SSH",
+        "option_d": "DNSSEC only",
+        "correct_option": "B",
+        "explanation": "DMARC allows domain owners to set policies that quarantine or reject forged sender addresses."
+    },
+    {
+        "question": "How does an OAuth Consent Grant phishing attack operate in cloud services like Microsoft 365 or Google Workspace?",
+        "option_a": "It downloads malware that exploits kernel vulnerabilities.",
+        "option_b": "It tricks users into approving a third-party app with full read/write permissions to mailbox and cloud files.",
+        "option_c": "It forces an operating system blue-screen error.",
+        "option_d": "It alters the physical network interface card.",
+        "correct_option": "B",
+        "explanation": "Illicit consent grants trick users into granting permissions without ever exposing their raw password."
+    },
+    {
+        "question": "Why is relying on password complexity alone insufficient against modern credential harvesting?",
+        "option_a": "Complex passwords expire within 1 hour automatically.",
+        "option_b": "If entered on a fraudulent lookalike portal, any password is captured regardless of complexity.",
+        "option_c": "Complexity rules are deprecated by all standard organizations.",
+        "option_d": "Complex passwords can only be typed on desktop keyboards.",
+        "correct_option": "B",
+        "explanation": "Phishing captures the exact characters entered by the user, making complexity alone ineffective without MFA and URL verification."
+    },
+    {
+        "question": "Why is rapid reporting of suspicious phishing messages critical in an organization?",
+        "option_a": "It immediately gives the reporting user system administrator rights.",
+        "option_b": "It enables IT to purge the attack from all other employee and student inboxes before clicks occur.",
+        "option_c": "It automatically files a police report within 10 seconds.",
+        "option_d": "It reboots all network switches across the campus.",
+        "correct_option": "B",
+        "explanation": "Fast reporting triggers security orchestration to pull malicious emails from all accounts organization-wide."
+    }
+]
+
 class QuizQuestionListView(APIView):
-    """Fetches all quiz assessment questions."""
+    """Fetches all quiz assessment questions, auto-seeding the 10-question pool if empty."""
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        questions = QuizQuestion.objects.all()
-        if not questions.exists():
-            QuizQuestion.objects.create(
-                question="Which of the following is the most definitive indicator of a spear-phishing attack?",
-                option_a="The email has a red-colored header",
-                option_b="Urgent call-to-action combined with a spoofed or lookalike sender domain",
-                option_c="The email contains an unsubscribe link",
-                option_d="The message was sent after business hours",
-                correct_option="B",
-                explanation="Attackers frequently leverage psychological urgency paired with lookalike domains to bypass casual scrutiny."
-            )
-            QuizQuestion.objects.create(
-                question="What should you do immediately if you submit banking credentials to a suspicious link?",
-                option_a="Wait 24 hours to see if any money is withdrawn",
-                option_b="Delete the browser history and close the tab",
-                option_c="Freeze your payment accounts/cards immediately and reset your security credentials",
-                option_d="Reply to the phishing email requesting account cancellation",
-                correct_option="C",
-                explanation="Immediately locking payment cards and changing passwords stops unauthorized transactions before attacker execution."
-            )
-            questions = QuizQuestion.objects.all()
+        if not QuizQuestion.objects.exists():
+            for item in EXPANDED_10_QUESTIONS:
+                QuizQuestion.objects.create(**item)
 
+        questions = QuizQuestion.objects.all()
         data = [{
             'id': q.id,
             'question': q.question,
