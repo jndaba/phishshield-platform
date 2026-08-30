@@ -28,6 +28,8 @@ urlpatterns = [
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/scanner/scan/', URLScanAPIView.as_view(), name='url_scan'),
     path('api/chat/', ChatMessageListCreateView.as_view(), name='chat_api'),
+    # Add this inside the urlpatterns list:
+    path('api/lms/', include('lms_content.urls')),
 ]
 
 if settings.DEBUG:

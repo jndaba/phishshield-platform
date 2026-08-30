@@ -6,6 +6,8 @@ import Scanner from './pages/Scanner';
 import MailSandbox from './pages/MailSandbox';
 import RecoveryGuide from './pages/RecoveryGuide';
 import SupportChat from './pages/SupportChat';
+import LearningCenter from './pages/LearningCenter';
+import AdminUsers from './pages/AdminUsers';
 
 export default function App() {
   return (
@@ -37,6 +39,12 @@ export default function App() {
               <Link to="/chat" className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:bg-slate-700 hover:text-white transition">
                 <MessageSquare className="w-4 h-4" /> Support & Chat
               </Link>
+              <Link to="/academy" className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:bg-slate-700 hover:text-white transition">
+                  <BookOpen className="w-4 h-4" /> Learning Academy
+              </Link>
+              <Link to="/admin/users" className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:bg-slate-700 hover:text-white transition">
+                <Users className="w-4 h-4" /> Admin User Hub
+              </Link>
             </nav>
           </div>
 
@@ -53,6 +61,8 @@ export default function App() {
             <Route path="/sandbox" element={<MailSandbox />} />
             <Route path="/recovery" element={<RecoveryGuide />} />
             <Route path="/chat" element={<SupportChat />} />
+            <Route path="/academy" element={<LearningCenter />} />
+            <Route path="/admin/users" element={<AdminUsers />} />
           </Routes>
         </main>
       </div>
