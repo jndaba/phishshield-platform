@@ -7,7 +7,9 @@ class ChatMessage(models.Model):
     message = models.TextField()
     is_admin_reply = models.BooleanField(default=False)
     timestamp = models.DateTimeField(auto_now_add=True)
-    is_read = models.BooleanField(default=False)
 
     class Meta:
         ordering = ['timestamp']
+
+    def __str__(self):
+        return f"{self.sender.username} -> {self.receiver.username if self.receiver else 'Support'}: {self.message[:30]}"

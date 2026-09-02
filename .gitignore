@@ -1,8 +1,16 @@
-﻿backend/venv/
-backend/__pycache__/
+﻿# Python cache & compiled bytecode across all subfolders
+**/__pycache__/
+*.py[cod]
+*$py.class
+
+# Backend environments, DB, and media
+venv/
+backend/venv/
 backend/*.sqlite3
 backend/media/
+.env
+
+# Frontend dependencies and build artifacts
 frontend/node_modules/
 frontend/dist/
-.env
 .DS_Store

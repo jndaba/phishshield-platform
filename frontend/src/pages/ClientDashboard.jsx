@@ -1,183 +1,133 @@
-import React from 'react';
-import { Mail, Target, Search, Award, ArrowUpRight, ShieldCheck, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect, useContext } from 'react';
+import { Mail, Target, Search, Award, CheckCircle, Clock, ShieldCheck, ArrowRight, BookOpen } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import axios from 'axios';
+import { AuthContext } from '../context/AuthContext';
 
 export default function ClientDashboard() {
-  const activities = [
-    { title: "Safe URL detected", url: "https://replit.com/@joshmellow/PhishShield-Cybersecurity-Platform · 18% risk", date: "Aug 30", isSafe: true },
-    { title: "Safe URL detected", url: "https://dulo.cx/ · 8% risk", date: "Aug 30", isSafe: true },
-    { title: "Safe URL detected", url: "https://dulo.cx/ · 8% risk", date: "Aug 30", isSafe: true },
-    { title: "Phishing simulation correct", desc: "Good instinct — you spotted the signal.", date: "Aug 30", isPhish: true },
-    { title: "Phishing simulation correct", desc: "Good instinct — you spotted the signal.", date: "Aug 30", isPhish: true },
-  ];
+  const { user } = useContext(AuthContext);
+  const [stats, setStats] = useState(null);
+  const [activities, setActivities] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchUserStats = async () => {
+      try {
+        const res = await axios.get('http://127.0.0.1:8000/api/auth/user-stats/');
+        setStats(res.data.stats);
+        setActivities(res.data.recent_activity || []);
+      } catch (err) {
+        console.error("Failed to load user stats", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchUserStats();
+  }, []);
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-6">
-      {/* Top Header */}
-      <div className="flex justify-between items-start">
+    <div className="min-h-full bg-[#F1F5F9] flex flex-col">
+      {/* LEARNER TOP NAVIGATION BAR */}
+      <header className="bg-white border-b border-slate-200 px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Monday, October 21</span>
-          <h1 className="text-3xl font-extrabold text-slate-900">Good morning, Alex.</h1>
-          <p className="text-xs text-slate-500 mt-1">Your habits are getting sharper. Here's the signal from your last seven days.</p>
+          <span className="text-xs font-bold text-slate-700">Icons Computer School & Cyber Security Portal</span>
         </div>
-        <Link
-          to="/scanner"
-          className="bg-[#0D4D4D] hover:bg-[#093838] text-white font-semibold px-4 py-2 rounded-lg text-xs transition flex items-center gap-1.5 shadow-sm"
-        >
-          <Search className="w-3.5 h-3.5" /> Scan a URL ↗
-        </Link>
-      </div>
+        <nav className="flex items-center gap-4 text-xs font-semibold text-slate-600">
+          <Link to="/chat" className="hover:text-teal-600 transition">Messages & Support</Link>
+          <Link to="/recovery" className="hover:text-teal-600 transition">Incident Guide</Link>
+          <a href="mailto:support@iconscomputerschool.co.ke" className="hover:text-teal-600 transition">Contact Us</a>
+          <span className="text-slate-300">|</span>
+          <span className="text-teal-700 bg-teal-50 px-2.5 py-1 rounded-full text-[11px] font-bold">
+            {user?.username} (Learner)
+          </span>
+        </nav>
+      </header>
 
-      {/* 4 Stat Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
-          <div className="flex justify-between items-center text-slate-400 mb-2">
-            <Mail className="w-4 h-4 text-teal-600" />
-            <span className="text-xs font-semibold text-teal-600">📈</span>
-          </div>
-          <span className="text-[11px] text-slate-400 font-medium">Emails reviewed</span>
-          <p className="text-2xl font-bold text-slate-900 mt-1">2</p>
-          <span className="text-[10px] text-slate-400">Across 12 simulations</span>
-        </div>
-
-        <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
-          <div className="flex justify-between items-center text-slate-400 mb-2">
-            <Target className="w-4 h-4 text-amber-500" />
-            <span className="text-xs font-semibold text-teal-600">📈</span>
-          </div>
-          <span className="text-[11px] text-slate-400 font-medium">Accuracy</span>
-          <p className="text-2xl font-bold text-slate-900 mt-1">100%</p>
-          <span className="text-[10px] text-teal-600 font-medium">Up 4.8% this week</span>
-        </div>
-
-        <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
-          <div className="flex justify-between items-center text-slate-400 mb-2">
-            <Search className="w-4 h-4 text-teal-600" />
-            <span className="text-xs font-semibold text-teal-600">📈</span>
-          </div>
-          <span className="text-[11px] text-slate-400 font-medium">URLs scanned</span>
-          <p className="text-2xl font-bold text-slate-900 mt-1">22</p>
-          <span className="text-[10px] text-slate-400">No unsafe clicks recorded</span>
-        </div>
-
-        <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
-          <div className="flex justify-between items-center text-slate-400 mb-2">
-            <Award className="w-4 h-4 text-amber-500" />
-            <span className="text-xs font-semibold text-teal-600">📈</span>
-          </div>
-          <span className="text-[11px] text-slate-400 font-medium">Certificates</span>
-          <p className="text-2xl font-bold text-slate-900 mt-1">1</p>
-          <span className="text-[10px] text-slate-400">1 more unlocks Expert</span>
-        </div>
-      </div>
-
-      {/* Middle Grid: Signal Trend & Readiness Card */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white p-6 rounded-xl border border-slate-200/80 shadow-sm">
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Signal Trend</span>
-              <h3 className="text-base font-bold text-slate-900">Weekly accuracy</h3>
-            </div>
-            <span className="text-[10px] font-semibold text-teal-700 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded-md">
-              +4.8% vs last week
-            </span>
-          </div>
-
-          {/* Bar signal simulation */}
-          <div className="flex items-end justify-between h-40 pt-4 px-2 gap-3 border-b border-slate-100 pb-3">
-            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, i) => (
-              <div key={day} className="flex-1 flex flex-col items-center gap-2">
-                <div
-                  className={`w-full rounded-t-md transition-all ${i === 6 ? 'bg-amber-400' : 'bg-teal-500'}`}
-                  style={{ height: `${[40, 65, 80, 70, 90, 95, 88][i]}%` }}
-                ></div>
-                <span className="text-[10px] text-slate-400 font-medium">{day}</span>
-              </div>
-            ))}
-          </div>
-          <div className="flex justify-between items-center pt-3 text-[10px] text-slate-400">
-            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-400"></span> Today's read is your strongest yet</span>
-            <span className="font-bold text-slate-700">88%</span>
-          </div>
-        </div>
-
-        {/* Dark Readiness Card */}
-        <div className="bg-[#102A36] text-white p-6 rounded-xl shadow-md flex flex-col justify-between">
+      {/* Main Content Area */}
+      <main className="p-8 max-w-7xl mx-auto w-full space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <div className="flex justify-between items-center mb-3">
-              <span className="text-[10px] font-bold text-teal-300 uppercase tracking-wider">Readiness</span>
-              <ShieldCheck className="w-5 h-5 text-teal-400" />
-            </div>
-            <h3 className="text-lg font-bold mb-4">You're in the clear.</h3>
-
-            <div className="flex items-baseline gap-2 mb-2">
-              <span className="text-4xl font-extrabold text-white">68</span>
-              <span className="text-xs text-slate-400">/ 100 overall</span>
-            </div>
-
-            <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden mb-4">
-              <div className="bg-teal-400 h-full rounded-full" style={{ width: '68%' }}></div>
-            </div>
-
-            <p className="text-xs text-slate-300 leading-relaxed">
-              Complete the <span className="text-teal-300 font-semibold">Social engineering patterns</span> quiz to reach your next milestone.
-            </p>
+            <h1 className="text-2xl font-extrabold text-slate-900">Learner Overview Cockpit</h1>
+            <p className="text-xs text-slate-500 mt-1">Track your progress toward earning your Certificate in Phishing Defense.</p>
           </div>
-
-          <Link to="/academy" className="text-xs font-semibold text-teal-300 hover:text-teal-200 inline-flex items-center gap-1 mt-4">
-            Continue learning ↗
+          <Link
+            to="/scanner"
+            className="bg-[#102A36] hover:bg-[#163847] text-white font-bold px-4 py-2 rounded-xl text-xs transition flex items-center gap-1.5 shadow-sm"
+          >
+            <Search className="w-3.5 h-3.5" /> Scan a URL ↗
           </Link>
         </div>
-      </div>
 
-      {/* Bottom Grid: Trail & Recommendation */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white p-6 rounded-xl border border-slate-200/80 shadow-sm">
-          <div className="flex justify-between items-center mb-4">
-            <div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Your Trail</span>
-              <h3 className="text-base font-bold text-slate-900">Recent activity</h3>
-            </div>
-            <span className="text-[10px] text-slate-400">Last 7 days</span>
+        {/* Certificate Progress Bar Card */}
+        <div className="bg-white border border-slate-200/80 p-6 rounded-2xl shadow-sm">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+              <Award className="w-4 h-4 text-teal-600" /> Certificate Qualification Progress
+            </span>
+            <span className="text-xs font-extrabold text-teal-700">{stats?.progress_percentage || 0}% Complete</span>
+          </div>
+          <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden mb-2">
+            <div className="bg-teal-500 h-full rounded-full transition-all duration-500" style={{ width: `${stats?.progress_percentage || 0}%` }}></div>
+          </div>
+          <div className="flex justify-between items-center text-[10px] text-slate-400">
+            <span>Completed {stats?.completed_modules || 0} of {stats?.total_modules || 14} Core Modules</span>
+            {stats?.is_certified ? (
+              <span className="text-emerald-600 font-bold">Ready for Download!</span>
+            ) : (
+              <span>Complete all modules to unlock your certificate</span>
+            )}
+          </div>
+        </div>
+
+        {/* Real Stats Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+            <BookOpen className="w-4 h-4 text-teal-600 mb-2" />
+            <span className="text-[11px] text-slate-400 font-medium">Modules Completed</span>
+            <p className="text-2xl font-bold text-slate-900 mt-1">{stats?.completed_modules || 0} / {stats?.total_modules || 14}</p>
           </div>
 
-          <div className="divide-y divide-slate-100">
-            {activities.map((act, idx) => (
-              <div key={idx} className="py-3 flex items-center justify-between text-xs">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-slate-100 rounded-lg text-slate-500">
-                    {act.isSafe ? <Search className="w-3.5 h-3.5 text-teal-600" /> : <Mail className="w-3.5 h-3.5 text-teal-600" />}
-                  </div>
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+            <Target className="w-4 h-4 text-amber-500 mb-2" />
+            <span className="text-[11px] text-slate-400 font-medium">Simulation Accuracy</span>
+            <p className="text-2xl font-bold text-slate-900 mt-1">{stats?.sim_accuracy || 0}%</p>
+          </div>
+
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+            <Search className="w-4 h-4 text-teal-600 mb-2" />
+            <span className="text-[11px] text-slate-400 font-medium">URLs Scanned</span>
+            <p className="text-2xl font-bold text-slate-900 mt-1">{stats?.urls_scanned || 0}</p>
+          </div>
+
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+            <Award className="w-4 h-4 text-amber-500 mb-2" />
+            <span className="text-[11px] text-slate-400 font-medium">Certificate Status</span>
+            <p className="text-base font-bold text-slate-900 mt-2">
+              {stats?.is_certified ? 'Unlocked' : 'Locked (In Progress)'}
+            </p>
+          </div>
+        </div>
+
+        {/* Recent Real Activity */}
+        <div className="bg-white border border-slate-200/80 p-6 rounded-2xl shadow-sm">
+          <h3 className="text-sm font-bold text-slate-900 mb-4">Your Recent Activity Trail</h3>
+          {activities.length > 0 ? (
+            <div className="divide-y divide-slate-100">
+              {activities.map((act, idx) => (
+                <div key={idx} className="py-3 flex items-center justify-between text-xs">
                   <div>
                     <p className="font-semibold text-slate-800">{act.title}</p>
-                    <p className="text-[11px] text-slate-400">{act.url || act.desc}</p>
+                    <p className="text-[10px] text-slate-400">{act.desc}</p>
                   </div>
+                  <span className="text-[10px] text-slate-400">{act.date}</span>
                 </div>
-                <span className="text-[10px] text-slate-400">{act.date}</span>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-slate-400 text-center py-4">No recent activity. Start scanning URLs or practicing simulations.</p>
+          )}
         </div>
-
-        {/* Recommended Box */}
-        <div className="bg-[#E6F4F1] border border-teal-200/60 p-6 rounded-xl flex flex-col justify-between">
-          <div>
-            <span className="text-[10px] font-bold text-teal-800 uppercase tracking-wider block mb-2">Recommended Next</span>
-            <h3 className="text-base font-bold text-slate-900 mb-2">Can you spot the invoice trap?</h3>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              A new payment-themed simulation is waiting. Take 90 seconds to test your instincts.
-            </p>
-          </div>
-
-          <Link
-            to="/sandbox"
-            className="mt-6 bg-white hover:bg-slate-50 text-slate-900 font-semibold px-4 py-2 rounded-lg text-xs border border-slate-200 text-center transition block shadow-sm"
-          >
-            Review simulation ↗
-          </Link>
-        </div>
-      </div>
+      </main>
     </div>
   );
 }

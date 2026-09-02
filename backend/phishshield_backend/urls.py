@@ -18,6 +18,7 @@ def api_root(request):
             "simulation": "/api/simulation/",
             "lms": "/api/lms/",
             "chat": "/api/chat/",
+            "recovery": "/api/recovery/",
             "admin": "/admin/"
         }
     })
@@ -32,6 +33,7 @@ urlpatterns = [
     path('api/lms/', include('lms_content.urls')),
     path('api/simulation/', include('simulation.urls')),
     path('api/auth/', include('authentication.urls')),
+    path('api/recovery/', include('recovery.urls')),
 ]
 
 if settings.DEBUG:

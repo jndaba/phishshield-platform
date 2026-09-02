@@ -1,42 +1,55 @@
 import io
+import uuid
 from datetime import datetime
-from reportlab.lib.pagesizes import landscape, letter
-from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.pagesizes import letter, landscape
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
+from reportlab.lib import colors
 
-def generate_certificate_pdf(student_name, course_name="Cybersecurity Awareness & Phishing Defense"):
+def generate_certificate_pdf(student_name="Student Candidate", score=85.0):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
         buffer,
         pagesize=landscape(letter),
-        rightMargin=0.5 * inch,
-        leftMargin=0.5 * inch,
-        topMargin=0.5 * inch,
-        bottomMargin=0.5 * inch
+        rightMargin=40,
+        leftMargin=40,
+        topMargin=35,
+        bottomMargin=35
     )
-
+    
+    cert_id = f"ICONS-SEC-{datetime.now().year}-{uuid.uuid4().hex[:8].upper()}"
+    date_str = datetime.now().strftime("%B %d, %Y")
+    
     styles = getSampleStyleSheet()
     
-    title_style = ParagraphStyle(
-        'CertTitle',
+    header_style = ParagraphStyle(
+        'CertHeader',
         parent=styles['Normal'],
         fontName='Helvetica-Bold',
-        fontSize=28,
-        leading=34,
-        textColor=colors.HexColor('#0B1120'),
-        alignment=1
+        fontSize=26,
+        leading=32,
+        alignment=1,
+        textColor=colors.HexColor('#0F172A')
     )
     
-    subtitle_style = ParagraphStyle(
-        'CertSubtitle',
+    sub_institution_style = ParagraphStyle(
+        'CertInst',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=15,
+        leading=18,
+        alignment=1,
+        textColor=colors.HexColor('#0D9488')
+    )
+    
+    awarded_style = ParagraphStyle(
+        'CertAwarded',
         parent=styles['Normal'],
         fontName='Helvetica',
-        fontSize=14,
-        leading=18,
-        textColor=colors.HexColor('#64748B'),
-        alignment=1
+        fontSize=12,
+        leading=16,
+        alignment=1,
+        textColor=colors.HexColor('#64748B')
     )
     
     name_style = ParagraphStyle(
@@ -44,57 +57,52 @@ def generate_certificate_pdf(student_name, course_name="Cybersecurity Awareness 
         parent=styles['Normal'],
         fontName='Helvetica-Bold',
         fontSize=24,
-        leading=30,
-        textColor=colors.HexColor('#0284C7'),
-        alignment=1
+        leading=28,
+        alignment=1,
+        textColor=colors.HexColor('#1E293B')
+    )
+    
+    body_style = ParagraphStyle(
+        'CertBody',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=11,
+        leading=16,
+        alignment=1,
+        textColor=colors.HexColor('#334155')
     )
     
     meta_style = ParagraphStyle(
         'CertMeta',
         parent=styles['Normal'],
         fontName='Helvetica',
-        fontSize=11,
-        leading=15,
-        textColor=colors.HexColor('#334155'),
-        alignment=1
+        fontSize=9,
+        leading=12,
+        alignment=1,
+        textColor=colors.HexColor('#94A3B8')
     )
 
-    story = [
-        Spacer(1, 0.4 * inch),
-        Paragraph("PHISHSHIELD CYBER DEFENSE ACADEMY", subtitle_style),
-        Spacer(1, 0.15 * inch),
-        Paragraph("CERTIFICATE OF COMPLETION", title_style),
-        Spacer(1, 0.25 * inch),
-        Paragraph("This is officially awarded to", subtitle_style),
-        Spacer(1, 0.15 * inch),
-        Paragraph(student_name.upper(), name_style),
-        Spacer(1, 0.15 * inch),
-        Paragraph(
-            f"For successfully demonstrating competence in recognizing social engineering attacks, "
-            f"verifying suspicious digital links, and completing the <b>{course_name}</b> program.",
-            meta_style
-        ),
-        Spacer(1, 0.4 * inch),
-    ]
-
-    issue_date = datetime.now().strftime("%B %d, %Y")
-    footer_data = [
-        [
-            Paragraph(f"<b>Issue Date:</b> {issue_date}", meta_style),
-            Paragraph("<b>Verification ID:</b> PS-SEC-" + str(abs(hash(student_name)))[:8], meta_style),
-            Paragraph("<b>Platform:</b> Dedan Kimathi University of Technology IT Capstone", meta_style)
-        ]
-    ]
+    story = []
+    story.append(Paragraph("CERTIFICATE OF PROFICIENCY", header_style))
+    story.append(Paragraph("ICONS COMPUTER SCHOOL AND CYBER", sub_institution_style))
+    story.append(Spacer(1, 10))
+    story.append(HRFlowable(width="80%", thickness=2, color=colors.HexColor('#0D9488'), spaceAfter=15, spaceBefore=5))
     
-    footer_table = Table(footer_data, colWidths=[2.5 * inch, 2.5 * inch, 3.5 * inch])
-    footer_table.setStyle(TableStyle([
-        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('LINEABOVE', (0,0), (-1,-1), 1, colors.HexColor('#CBD5E1')),
-    ]))
+    story.append(Paragraph("This is to certify that", awarded_style))
+    story.append(Spacer(1, 8))
+    story.append(Paragraph(student_name.upper(), name_style))
+    story.append(Spacer(1, 8))
     
-    story.append(footer_table)
+    desc_text = (
+        f"has successfully completed the complete Cybersecurity & Phishing Defense curriculum, "
+        f"demonstrating excellence in email spoof analysis, technical heuristic scanning, and threat containment with a final evaluation score of <b>{score}%</b>."
+    )
+    story.append(Paragraph(desc_text, body_style))
+    story.append(Spacer(1, 20))
+    
+    meta_text = f"<b>Certificate ID:</b> {cert_id} &nbsp;&nbsp;|&nbsp;&nbsp; <b>Date Issued:</b> {date_str} &nbsp;&nbsp;|&nbsp;&nbsp; <b>Authority:</b> Icons Computer School and Cyber"
+    story.append(Paragraph(meta_text, meta_style))
+    
     doc.build(story)
-    
     buffer.seek(0)
-    return buffer
+    return buffer, cert_id

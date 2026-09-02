@@ -2,73 +2,194 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import permissions, status, generics
 from django.http import HttpResponse
+
 from .models import SimulationEmail, SimulationResult, QuizQuestion, QuizSubmission
 from .serializers import SimulationEmailSerializer, SimulationResultSerializer
 from .certificate_generator import generate_certificate_pdf
 from authentication.models import ActivityAudit
+from lms_content.models import LearningModule, UserProgress
 
 # ----------------------------------------------------
-# 1. Virtual Mailbox Simulation Views & Admin Controls
+# 1. 10 Core Simulation Email Scenarios & Views
 # ----------------------------------------------------
+
+DEFAULT_SIMULATION_EMAILS = [
+    {
+        "sender_name": "M-Pesa Business Notifications",
+        "sender_email": "alerts@safaricom-mpesa-service.net",
+        "subject": "Transaction Reversal Request: Ksh 14,500",
+        "difficulty": "medium",
+        "is_phishing": True,
+        "body_html": """
+            <p class="mb-2">Dear Customer,</p>
+            <p class="mb-2">A reversal request for transaction ID <strong>SL89XQ21</strong> of <strong>Ksh 14,500</strong> to Alex Mwangi has been initiated.</p>
+            <p class="mb-3">If you did not authorize this reversal, authenticate your session immediately to cancel within 15 minutes.</p>
+            <div class="my-4">
+                <a href="http://mpesa-support-reversals.xyz/auth" target="_blank" rel="noreferrer" class="inline-block bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded text-xs">
+                    Cancel Transaction Reversal
+                </a>
+            </div>
+            <p class="text-xs text-slate-400">Safaricom PLC Mobile Financial Services.</p>
+        """,
+        "clues": "Look at the sender domain (@safaricom-mpesa-service.net vs official safaricom.co.ke) and the artificial 15-minute countdown urgency."
+    },
+    {
+        "sender_name": "University ICT Support Desk",
+        "sender_email": "helpdesk@iconscomputerschool.co.ke",
+        "subject": "Scheduled Campus Network Infrastructure Maintenance",
+        "difficulty": "easy",
+        "is_phishing": False,
+        "body_html": """
+            <p class="mb-2">Dear Campus Community,</p>
+            <p class="mb-2">Please be informed that routine Wi-Fi and portal maintenance will occur this Saturday between 02:00 AM and 05:00 AM.</p>
+            <p class="mb-2">No action or credential validation is required on your part.</p>
+            <p class="text-xs text-slate-400">ICT Operations & Infrastructure Team - Icons Computer School</p>
+        """,
+        "clues": "Sent from official institutional domain (@iconscomputerschool.co.ke) with no demand for credentials or external links."
+    },
+    {
+        "sender_name": "Microsoft 365 Security Center",
+        "sender_email": "security@account-protection-microsoft.co",
+        "subject": "Action Required: 3 Incoming Messages Quarantined",
+        "difficulty": "hard",
+        "is_phishing": True,
+        "body_html": """
+            <p class="mb-2">Your institutional mailbox has 3 incoming messages held in quarantine due to SPF policy validation failures.</p>
+            <p class="mb-3">Review and release these messages before they are permanently purged from the cloud storage cluster.</p>
+            <div class="my-4">
+                <a href="http://auth-office365-quarantine.com/review" target="_blank" rel="noreferrer" class="inline-block bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-4 rounded text-xs">
+                    Release Quarantined Messages
+                </a>
+            </div>
+            <p class="text-xs text-slate-400">Microsoft Security Operations Center</p>
+        """,
+        "clues": "The domain uses a deceptive lookalike syntax (.co instead of official microsoft.com) and routes to an unverified auth portal."
+    },
+    {
+        "sender_name": "Finance & Payroll Department",
+        "sender_email": "payroll-update@icons-internal-portal.net",
+        "subject": "Urgent: Complete Annual Withholding Verification (Form P9)",
+        "difficulty": "medium",
+        "is_phishing": True,
+        "body_html": """
+            <p class="mb-2">All staff members and attachment interns must verify their statutory withholding details for the current financial period.</p>
+            <p class="mb-3">Failure to update banking and national ID credentials will result in salary disbursement suspension.</p>
+            <div class="my-4">
+                <a href="http://portal-payroll-verification.org/login" target="_blank" rel="noreferrer" class="inline-block bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded text-xs">
+                    Update Payroll Records
+                </a>
+            </div>
+        """,
+        "clues": "Lookalike external domain (@icons-internal-portal.net) attempting to harvest banking numbers and national identity cards under threat of non-payment."
+    },
+    {
+        "sender_name": "Google Workspace Alert",
+        "sender_email": "no-reply@accounts.google.com",
+        "subject": "Security Alert: New Sign-in from Firefox on Linux",
+        "difficulty": "easy",
+        "is_phishing": False,
+        "body_html": """
+            <p class="mb-2">Hi Joel,</p>
+            <p class="mb-2">Your Google Account was just accessed from a new device in Nairobi, Kenya.</p>
+            <p class="mb-3">If this was you, you don't need to take any action. If you didn't sign in, visit your account dashboard to review your security activity.</p>
+            <p class="text-xs text-slate-400">Google LLC, 1600 Amphitheatre Parkway, Mountain View, CA</p>
+        """,
+        "clues": "Legitimate automated notification from @accounts.google.com without external credential-harvesting links."
+    },
+    {
+        "sender_name": "Speedaf Express Logistics",
+        "sender_email": "tracking-dispatch@speedaf-deliveries-ke.xyz",
+        "subject": "Parcel Delivery Exception: Incomplete Street Address",
+        "difficulty": "medium",
+        "is_phishing": True,
+        "body_html": """
+            <p class="mb-2">Your incoming parcel <strong>#KE-9214-X8</strong> could not be routed due to an incorrect postal address index.</p>
+            <p class="mb-3">Please pay the redelivery clearance fee of Ksh 180 to update your dispatch instructions.</p>
+            <div class="my-4">
+                <a href="http://parcel-redelivery-clearance.top/pay" target="_blank" rel="noreferrer" class="inline-block bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 px-4 rounded text-xs">
+                    Confirm Delivery Address
+                </a>
+            </div>
+        """,
+        "clues": "Deceptive top-level domain (.xyz / .top) asking for payment information for an unexpected package delivery."
+    },
+    {
+        "sender_name": "Icons IT Help Desk",
+        "sender_email": "administrator@iconscomputerschool.co.ke",
+        "subject": "Urgent: Mandatory Password Expiry in 24 Hours",
+        "difficulty": "hard",
+        "is_phishing": True,
+        "body_html": """
+            <p class="mb-2">Attention Student / Staff,</p>
+            <p class="mb-2">Your portal passphrase will expire in 24 hours pursuant to institutional cybersecurity rotation policies.</p>
+            <p class="mb-3">Retain your current password without resetting by authenticating through the synchronized identity provider below:</p>
+            <div class="my-4">
+                <a href="http://login-iconscomputerschool-sync.com/sso" target="_blank" rel="noreferrer" class="inline-block bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 px-4 rounded text-xs">
+                    Keep Current Password
+                </a>
+            </div>
+        """,
+        "clues": "Display spoofing with a link leading to an external domain (login-iconscomputerschool-sync.com) rather than the real institution domain."
+    },
+    {
+        "sender_name": "GitHub Notification",
+        "sender_email": "notifications@github.com",
+        "subject": "[PhishShield-Lab] A personal access token has expired",
+        "difficulty": "easy",
+        "is_phishing": False,
+        "body_html": """
+            <p class="mb-2">Hi developer,</p>
+            <p class="mb-2">Your personal access token <strong>dev-token-2026</strong> expired today. Tokens that are expired can no longer be used for Git or API requests.</p>
+            <p class="mb-2">You can generate a new token in your Developer Settings at github.com.</p>
+            <p class="text-xs text-slate-400">GitHub Inc. · Customer Security Operations</p>
+        """,
+        "clues": "Legitimate notification from @github.com with standard advisory text and no suspicious external redirects."
+    },
+    {
+        "sender_name": "DocuSign Electronic Signature",
+        "sender_email": "service@docusign-contracts-sign.net",
+        "subject": "Please Review and Sign: Internship Agreement Letter",
+        "difficulty": "hard",
+        "is_phishing": True,
+        "body_html": """
+            <p class="mb-2"><strong>Icons Computer School Administration</strong> has sent you an electronic document to review and sign.</p>
+            <p class="mb-3">Document: <em>Industrial_Attachment_Agreement_2026.pdf</em></p>
+            <div class="my-4">
+                <a href="http://docusign-secure-document-sign.info/doc/90214" target="_blank" rel="noreferrer" class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded text-xs">
+                    Review Document
+                </a>
+            </div>
+            <p class="text-xs text-slate-400">DocuSign Secure Document Distribution Engine</p>
+        """,
+        "clues": "Spoofed DocuSign service using lookalike domain @docusign-contracts-sign.net redirecting to an untrusted .info domain."
+    },
+    {
+        "sender_name": "Academic Registrar's Office",
+        "sender_email": "registrar@iconscomputerschool.co.ke",
+        "subject": "End of Term Examination Timetable Release",
+        "difficulty": "easy",
+        "is_phishing": False,
+        "body_html": """
+            <p class="mb-2">Dear Students,</p>
+            <p class="mb-2">The provisional examination schedule for the upcoming assessment series has been published on the student portal noticeboard.</p>
+            <p class="mb-2">Please inspect the noticeboard directly to verify exam room allocations.</p>
+            <p class="text-xs text-slate-400">Office of the Registrar (Academic Affairs) - Icons Computer School</p>
+        """,
+        "clues": "Legitimate institutional email from official domain (@iconscomputerschool.co.ke) directing users to internal noticeboards with no credential forms."
+    }
+]
 
 class SimulationEmailListCreateView(generics.ListCreateAPIView):
-    """Allows learners to fetch scenarios and admins to create new email simulations."""
+    queryset = SimulationEmail.objects.all().order_by('-created_at')
     serializer_class = SimulationEmailSerializer
     permission_classes = [permissions.AllowAny]
 
     def get_queryset(self):
-        if not SimulationEmail.objects.exists():
-            SimulationEmail.objects.create(
-                sender_name="M-Pesa Business Notifications",
-                sender_email="alerts@safaricom-mpesa-service.net",
-                subject="Transaction Reversal Request: Ksh 14,500",
-                difficulty="medium",
-                is_phishing=True,
-                body_html="""
-                    <p class="mb-2">Dear Customer,</p>
-                    <p class="mb-2">A reversal request for transaction ID <strong>SL89XQ21</strong> of <strong>Ksh 14,500</strong> to Alex Mwangi has been initiated.</p>
-                    <p class="mb-3">If you did not authorize this reversal, authenticate your session immediately to cancel within 15 minutes.</p>
-                    <div class="my-4">
-                        <a href="http://mpesa-support-reversals.xyz/auth" target="_blank" rel="noreferrer" class="inline-block bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded text-xs">
-                            Cancel Transaction Reversal
-                        </a>
-                    </div>
-                    <p class="text-xs text-slate-400">Safaricom PLC Mobile Financial Services.</p>
-                """,
-                clues="Look at the sender domain (@safaricom-mpesa-service.net vs official safaricom.co.ke) and the artificial 15-minute countdown urgency."
-            )
-            SimulationEmail.objects.create(
-                sender_name="University ICT Support",
-                sender_email="helpdesk@dekut.ac.ke",
-                subject="Scheduled Wi-Fi Infrastructure Maintenance",
-                difficulty="easy",
-                is_phishing=False,
-                body_html="""
-                    <p class="mb-2">Dear Campus Community,</p>
-                    <p class="mb-2">Please be informed that routine Wi-Fi maintenance will occur this Saturday between 02:00 AM and 05:00 AM.</p>
-                    <p class="mb-2">No action or credential validation is required on your part.</p>
-                    <p class="text-xs text-slate-400">ICT Operations & Maintenance Team</p>
-                """,
-                clues="Valid institutional sender domain (@dekut.ac.ke) with no demand for passwords or external links."
-            )
-            SimulationEmail.objects.create(
-                sender_name="Microsoft 365 Security",
-                sender_email="security@account-protection-microsoft.co",
-                subject="Action Required: 3 Quarantined Messages",
-                difficulty="hard",
-                is_phishing=True,
-                body_html="""
-                    <p class="mb-2">Your mailbox has 3 incoming messages held in quarantine due to SPF policy failures.</p>
-                    <p class="mb-3">Review these messages to prevent permanent deletion from the cloud server.</p>
-                    <div class="my-4">
-                        <a href="http://auth-office365-quarantine.com/review" target="_blank" rel="noreferrer" class="inline-block bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-4 rounded text-xs">
-                            Release Quarantined Messages
-                        </a>
-                    </div>
-                    <p class="text-xs text-slate-400">Microsoft Security Operations Center</p>
-                """,
-                clues="The domain uses a deceptive lookalike syntax (.co instead of official microsoft.com) and directs to an unverified auth URL."
-            )
+        # Auto-seed if fewer than 10 emails exist
+        if SimulationEmail.objects.count() < 10:
+            SimulationEmail.objects.all().delete()
+            for email in DEFAULT_SIMULATION_EMAILS:
+                SimulationEmail.objects.create(**email)
         return SimulationEmail.objects.all().order_by('-created_at')
 
 class SimulationEmailDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -247,7 +368,7 @@ class QuizSubmitView(APIView):
     def post(self, request):
         user_answers = request.data.get('answers', {})
         questions = QuizQuestion.objects.all()
-        
+
         if not questions.exists():
             return Response({'error': 'No questions available.'}, status=400)
 
@@ -260,7 +381,7 @@ class QuizSubmitView(APIView):
             is_correct = (selected == q.correct_option)
             if is_correct:
                 correct_count += 1
-            
+
             detailed_results.append({
                 'id': q.id,
                 'question': q.question,
@@ -273,6 +394,14 @@ class QuizSubmitView(APIView):
         percentage = round((correct_count / total_questions) * 100, 1)
         passed = percentage >= 75.0
 
+        if request.user.is_authenticated:
+            QuizSubmission.objects.create(
+                user=request.user,
+                score=correct_count,
+                total_questions=total_questions,
+                passed=passed
+            )
+
         return Response({
             'score': correct_count,
             'total': total_questions,
@@ -282,13 +411,22 @@ class QuizSubmitView(APIView):
         })
 
 class CertificateDownloadView(APIView):
-    """Generates and downloads a custom ReportLab PDF completion certificate."""
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        name = request.query_params.get('name', 'Student Candidate')
-        pdf_buffer = generate_certificate_pdf(student_name=name)
-        
+        user = request.user
+        total_mods = LearningModule.objects.count()
+        completed_mods = UserProgress.objects.filter(user=user, completed=True).count()
+
+        # Strict validation: Certificate requires all modules completed
+        if completed_mods < total_mods or total_mods == 0:
+            return Response({
+                'error': f'Certificate locked. You have completed {completed_mods}/{total_mods} modules. Complete all modules to unlock.'
+            }, status=403)
+
+        name = request.query_params.get('name') or user.username
+        pdf_buffer, cert_id = generate_certificate_pdf(student_name=name)
+
         response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
-        response['Content-Disposition'] = f'attachment; filename="PhishShield_Certificate_{name.replace(" ", "_")}.pdf"'
+        response['Content-Disposition'] = f'attachment; filename="PhishShield_Certificate_{cert_id}.pdf"'
         return response

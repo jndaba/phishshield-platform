@@ -3,7 +3,8 @@ import re
 import os
 import gzip
 import joblib
-import requests
+import urllib.request
+import urllib.error
 import pandas as pd
 from urllib.parse import urlparse
 from sklearn.ensemble import RandomForestClassifier
@@ -48,10 +49,11 @@ def fetch_phishtank_feed(sample_size: int = 2000) -> pd.DataFrame:
     headers = {"User-Agent": "phishshield-classifier-training"}
 
     try:
-        response = requests.get(url, headers=headers, timeout=30)
-        response.raise_for_status()
-        
-        with gzip.GzipFile(fileobj=io.BytesIO(response.content)) as gz:
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            content = resp.read()
+
+        with gzip.GzipFile(fileobj=io.BytesIO(content)) as gz:
             df_phish = pd.read_csv(gz)
             
         urls = df_phish['url'].dropna().drop_duplicates().sample(n=min(sample_size, len(df_phish)), random_state=42).tolist()

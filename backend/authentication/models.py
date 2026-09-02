@@ -27,3 +27,14 @@ class ActivityAudit(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.title} ({self.timestamp.strftime('%Y-%m-%d %H:%M')})"
+
+class PlatformContact(models.Model):
+    name = models.CharField(max_length=150, default="Joel Ndaba")
+    phone = models.CharField(max_length=50, default="+254721952909")
+    email = models.EmailField(default="support@iconscomputerschool.co.ke")
+    institution = models.CharField(max_length=200, default="Icons Computer School and Cyber")
+    office_location = models.CharField(max_length=200, default="Nairobi, Kenya")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.name} - {self.phone}"    

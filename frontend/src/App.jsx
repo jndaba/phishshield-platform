@@ -4,6 +4,7 @@ import { AuthProvider, AuthContext } from './context/AuthContext';
 import Sidebar from './components/Sidebar';
 
 // Pages
+import Home from './pages/Home';
 import ClientDashboard from './pages/ClientDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import Scanner from './pages/Scanner';
@@ -18,6 +19,8 @@ import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Certificates from './pages/Certificates';
+import ContactUs from './pages/ContactUs';
+import AdminControlPanel from './pages/AdminControlPanel';
 
 // Layout wrapper for authenticated pages
 const ProtectedLayout = () => {
@@ -35,21 +38,32 @@ const ProtectedLayout = () => {
       {/* Main Content Area */}
       <main className="flex-1 overflow-y-auto">
         <Routes>
-          <Route path="/" element={<ClientDashboard />} />
-          <Route path="/admin-console" element={user.is_admin ? <AdminDashboard /> : <Navigate to="/" replace />} />
+          <Route path="/dashboard" element={<ClientDashboard />} />
+          <Route path="/admin-console" element={user.is_admin ? <AdminDashboard /> : <Navigate to="/dashboard" replace />} />
           <Route path="/scanner" element={<Scanner />} />
           <Route path="/sandbox" element={<MailSandbox />} />
           <Route path="/recovery" element={<RecoveryGuide />} />
           <Route path="/chat" element={<SupportChat />} />
           <Route path="/academy" element={<LearningCenter />} />
-          <Route path="/admin/users" element={user.is_admin ? <AdminUsers /> : <Navigate to="/" replace />} />
+          <Route path="/admin/users" element={user.is_admin ? <AdminUsers /> : <Navigate to="/dashboard" replace />} />
           <Route path="/assessment" element={<Assessment />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/certificates" element={<Certificates />} />
+          <Route path="/contact" element={<ContactUs />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route 
+            path="/admin-control-panel" 
+            element={user.is_admin ? <AdminControlPanel /> : <Navigate to="/dashboard" replace />} 
+          />
         </Routes>
       </main>
     </div>
   );
+};
+
+// Root Switcher: Shows Landing Page if logged out, or routes to Dashboard if logged in
+const RootRoute = () => {
+  const { user } = useContext(AuthContext);
+  return user ? <Navigate to="/dashboard" replace /> : <Home />;
 };
 
 export default function App() {
@@ -57,12 +71,14 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          {/* Public Auth Routes */}
+          {/* Public Landing & Authentication Routes */}
+          <Route path="/" element={<RootRoute />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
 
-          {/* Protected Application Routes */}
+          {/* Protected Application Workspace */}
           <Route path="/*" element={<ProtectedLayout />} />
         </Routes>
       </BrowserRouter>
