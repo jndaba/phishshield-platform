@@ -5,7 +5,8 @@ from django.conf.urls.static import static
 from django.http import JsonResponse
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from scanner.views import URLScanAPIView
-from chat.views import ChatMessageListCreateView
+from chat.views import ChatThreadView
+
 
 def api_root(request):
     return JsonResponse({
@@ -23,13 +24,14 @@ def api_root(request):
         }
     })
 
+
 urlpatterns = [
     path('', api_root, name='api_root'),
     path('admin/', admin.site.urls),
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/scanner/scan/', URLScanAPIView.as_view(), name='url_scan'),
-    path('api/chat/', ChatMessageListCreateView.as_view(), name='chat_api'),
+    path('api/chat/', ChatThreadView.as_view(), name='chat_api'),
     path('api/lms/', include('lms_content.urls')),
     path('api/simulation/', include('simulation.urls')),
     path('api/auth/', include('authentication.urls')),

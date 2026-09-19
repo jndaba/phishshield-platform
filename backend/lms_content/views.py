@@ -1,19 +1,26 @@
-from rest_framework import generics, permissions, status
+from rest_framework import generics, permissions, status, serializers
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.contrib.auth.models import User
-from .models import LearningModule, UserProgress
+from django.shortcuts import get_object_or_404
+
+from .models import LearningModule, UserProgress, IncidentGuide
 from .serializers import LearningModuleSerializer, UserProgressSerializer, AdminUserManagementSerializer
+from authentication.models import ActivityAudit
+
+
+# ==============================================================================
+# 1. Static Rich Learning Curriculum (14 Comprehensive Modules)
+# ==============================================================================
 
 RICH_2PAGE_MODULES = [
     {
-        "module_number": 1,
+        "order": 1,
         "title": "Anatomy of Phishing & Psychological Triggers",
         "category": "Foundations",
-        "estimated_read_time": "12 mins",
+        "duration_minutes": 12,
         "description": "Deep-dive analysis into cognitive manipulation, authority exploitation, scarcity triggers, and technical indicators of credential lures.",
-        "video_url": "https://www.youtube.com/embed/XBkzBrXllBo",
-        "rich_content": """
+        "content_body": """
             <h2>1. Introduction & Theoretical Foundations</h2>
             <p>Phishing is a form of social engineering where attackers deceive individuals into disclosing confidential information or deploying malware. Unlike pure software exploits, phishing attacks capitalize on human cognitive shortcuts.</p>
             
@@ -46,13 +53,12 @@ RICH_2PAGE_MODULES = [
         """
     },
     {
-        "module_number": 2,
+        "order": 2,
         "title": "Spear Phishing & Executive Impersonation",
         "category": "Targeted Attacks",
-        "estimated_read_time": "14 mins",
+        "duration_minutes": 14,
         "description": "Examine Open Source Intelligence (OSINT) reconnaissance tactics, spear-phishing mechanics, and business email compromise prevention.",
-        "video_url": "https://www.youtube.com/embed/9GzF7f-38z8",
-        "rich_content": """
+        "content_body": """
             <h2>1. Reconnaissance & OSINT Harvesting</h2>
             <p>Spear phishing represents targeted attacks directed at specific individuals, departments, or high-value organizational roles. Attackers leverage OSINT across institutional directories, LinkedIn, and social profiles to construct convincing narratives.</p>
             
@@ -79,13 +85,12 @@ RICH_2PAGE_MODULES = [
         """
     },
     {
-        "module_number": 3,
+        "order": 3,
         "title": "Email Header Forensics & Cryptographic Authentication",
         "category": "Technical Defense",
-        "estimated_read_time": "15 mins",
+        "duration_minutes": 15,
         "description": "In-depth study of SMTP transmission headers, SPF validation, DKIM cryptographic signing, and DMARC enforcement policies.",
-        "video_url": "https://www.youtube.com/embed/2_YnQ5iFm5Q",
-        "rich_content": """
+        "content_body": """
             <h2>1. Anatomy of an SMTP Header</h2>
             <p>Simple Mail Transfer Protocol (SMTP) by default does not restrict sender addresses. Forensic analysis requires parsing RFC headers to authenticate originating hosts.</p>
             
@@ -109,12 +114,12 @@ RICH_2PAGE_MODULES = [
         """
     },
     {
-        "module_number": 4,
+        "order": 4,
         "title": "IDN Homograph Attacks & Lookalike Domains",
         "category": "Technical Defense",
-        "estimated_read_time": "11 mins",
+        "duration_minutes": 11,
         "description": "Explore internationalized domain spoofing, Cyrillic character substitution, typosquatting variants, and browser Punycode protections.",
-        "rich_content": """
+        "content_body": """
             <h2>1. Unicode vs. ASCII Spoofing</h2>
             <p>Internationalized Domain Names (IDNs) permit non-Latin scripts in web addresses. Adversaries exploit visually identical glyphs (homoglyphs) to register fraudulent lookalikes.</p>
             
@@ -138,13 +143,12 @@ RICH_2PAGE_MODULES = [
         """
     },
     {
-        "module_number": 5,
+        "order": 5,
         "title": "Smishing, Vishing & Multi-Channel Attacks",
         "category": "Mobile Security",
-        "estimated_read_time": "12 mins",
+        "duration_minutes": 12,
         "description": "Master the indicators of SMS-based mobile money scams, voice phishing tactics, and WhatsApp social engineering attacks.",
-        "video_url": "https://www.youtube.com/embed/XBkzBrXllBo",
-        "rich_content": """
+        "content_body": """
             <h2>1. Mobile Social Engineering Ecosystem</h2>
             <p>Mobile devices blur personal and organizational perimeters. Attackers target smartphones via SMS (Smishing) and voice calls (Vishing) to harvest OTPs and PINs.</p>
             
@@ -166,12 +170,12 @@ RICH_2PAGE_MODULES = [
         """
     },
     {
-        "module_number": 6,
+        "order": 6,
         "title": "Quishing & Visual QR Code Exploits",
         "category": "Emerging Vectors",
-        "estimated_read_time": "10 mins",
+        "duration_minutes": 10,
         "description": "Understanding how QR code encoding conceals malicious URLs from text-based email filters and physical poster attacks.",
-        "rich_content": """
+        "content_body": """
             <h2>1. Mechanics of Quishing Attacks</h2>
             <p>Quishing (QR Code Phishing) embeds malicious URLs inside matrix barcode images. Because the payload is graphical, standard email filters cannot parse the plain text URL directly.</p>
             
@@ -191,12 +195,12 @@ RICH_2PAGE_MODULES = [
         """
     },
     {
-        "module_number": 7,
+        "order": 7,
         "title": "Weaponized Attachments & Sandbox Analysis",
         "category": "Malware Vectors",
-        "estimated_read_time": "14 mins",
+        "duration_minutes": 14,
         "description": "Techniques for spotting weaponized Office macros, obfuscated PDF javascript payloads, ISO containers, and executable droppers.",
-        "rich_content": """
+        "content_body": """
             <h2>1. Attachment Delivery Vectors</h2>
             <p>Adversaries utilize document formats to bypass boundary defenses and deploy initial access droppers onto endpoints.</p>
             
@@ -215,12 +219,12 @@ RICH_2PAGE_MODULES = [
         """
     },
     {
-        "module_number": 8,
+        "order": 8,
         "title": "Session Hijacking & Adversary-in-the-Middle (AiTM)",
         "category": "Advanced Threats",
-        "estimated_read_time": "15 mins",
+        "duration_minutes": 15,
         "description": "How reverse-proxy toolkits intercept authenticated session tokens and bypass legacy two-factor authentication prompts.",
-        "rich_content": """
+        "content_body": """
             <h2>1. Anatomy of AiTM Reverse Proxies</h2>
             <p>Adversary-in-the-Middle (AiTM) proxies sit between the target victim and the genuine authentication server (e.g., Microsoft 365 or Google Workspace).</p>
             
@@ -236,12 +240,12 @@ RICH_2PAGE_MODULES = [
         """
     },
     {
-        "module_number": 9,
+        "order": 9,
         "title": "Watering Hole Attacks & Portal Compromise",
         "category": "Web Security",
-        "estimated_read_time": "12 mins",
+        "duration_minutes": 12,
         "description": "Understand strategic web compromise targeting student cohorts and institutional portals.",
-        "rich_content": """
+        "content_body": """
             <h2>1. Strategic Website Compromise</h2>
             <p>Watering hole attacks identify websites frequently visited by target organizations, compromising the host server to distribute drive-by exploit kits.</p>
             
@@ -256,12 +260,12 @@ RICH_2PAGE_MODULES = [
         """
     },
     {
-        "module_number": 10,
+        "order": 10,
         "title": "Cloud Identity & OAuth Consent Abuse",
         "category": "Cloud Security",
-        "estimated_read_time": "13 mins",
+        "duration_minutes": 13,
         "description": "Identify malicious third-party OAuth enterprise applications requesting excessive mailbox and file permissions.",
-        "rich_content": """
+        "content_body": """
             <h2>1. Illicit OAuth Consent Grants</h2>
             <p>Rather than stealing passwords, attackers register malicious cloud apps requesting delegated access tokens (e.g., <code>Mail.ReadWrite</code> or <code>Files.ReadWrite.All</code>).</p>
             
@@ -276,12 +280,12 @@ RICH_2PAGE_MODULES = [
         """
     },
     {
-        "module_number": 11,
+        "order": 11,
         "title": "Credential Stuffing & Password Hygiene",
         "category": "Access Control",
-        "estimated_read_time": "11 mins",
+        "duration_minutes": 11,
         "description": "Preventing automated account takeovers using breach leak lists and master passphrase management.",
-        "rich_content": """
+        "content_body": """
             <h2>1. Mechanics of Credential Stuffing</h2>
             <p>Attackers feed millions of leaked username/password combinations into automated scripts against university systems.</p>
             
@@ -290,12 +294,12 @@ RICH_2PAGE_MODULES = [
         """
     },
     {
-        "module_number": 12,
+        "order": 12,
         "title": "Incident Containment & Emergency Isolation",
         "category": "Incident Response",
-        "estimated_read_time": "14 mins",
+        "duration_minutes": 14,
         "description": "First responder protocol when a user clicks a malicious payload, enters credentials, or notices unauthorized account activity.",
-        "rich_content": """
+        "content_body": """
             <h2>1. Emergency 4-Step Containment Protocol</h2>
             <ol>
                 <li><strong>Network Isolation:</strong> Disconnect Wi-Fi or unplug Ethernet immediately.</li>
@@ -306,31 +310,36 @@ RICH_2PAGE_MODULES = [
         """
     },
     {
-        "module_number": 13,
+        "order": 13,
         "title": "Data Loss Prevention & Information Classification",
         "category": "Compliance",
-        "estimated_read_time": "12 mins",
+        "duration_minutes": 12,
         "description": "Safeguarding Personally Identifiable Information (PII), academic transcripts, and institutional secrets.",
-        "rich_content": """
+        "content_body": """
             <h2>1. Data Classification Tiers</h2>
             <p>Learn how to categorize data into Public, Internal, Confidential, and Restricted tiers to apply adequate encryption safeguards.</p>
         """
     },
     {
-        "module_number": 14,
+        "order": 14,
         "title": "Building a Human Firewall & Reporting Culture",
         "category": "Culture",
-        "estimated_read_time": "10 mins",
+        "duration_minutes": 10,
         "description": "How rapid reporting of suspected attacks empowers automated security orchestration to purge threats campus-wide.",
-        "rich_content": """
+        "content_body": """
             <h2>1. Collective Defense & Threat Intelligence</h2>
             <p>A resilient security culture relies on fast reporting. When one student reports a phishing email within 5 minutes, automated systems can remove that message from all other inboxes before clicks occur.</p>
         """
     }
 ]
 
+
+# ==============================================================================
+# 2. Learning Module & Progress API Views
+# ==============================================================================
+
 class ModuleListCreateView(generics.ListCreateAPIView):
-    queryset = LearningModule.objects.all().order_by('module_number')
+    queryset = LearningModule.objects.all().order_by('order')
     serializer_class = LearningModuleSerializer
     permission_classes = [permissions.AllowAny]
 
@@ -338,33 +347,234 @@ class ModuleListCreateView(generics.ListCreateAPIView):
         if not LearningModule.objects.exists():
             for mod in RICH_2PAGE_MODULES:
                 LearningModule.objects.create(**mod)
-        return LearningModule.objects.all().order_by('module_number')
+        return LearningModule.objects.all().order_by('order')
+
 
 class ModuleDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = LearningModule.objects.all()
     serializer_class = LearningModuleSerializer
     permission_classes = [permissions.AllowAny]
 
+
 class UserProgressUpdateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, module_id):
-        module = LearningModule.objects.get(id=module_id)
+        module = get_object_or_404(LearningModule, id=module_id)
         progress, _ = UserProgress.objects.get_or_create(user=request.user, module=module)
         progress.completed = request.data.get('completed', True)
         progress.score = request.data.get('score', 100)
         progress.save()
 
-        # Update readiness
+        # Dynamically compute and store the new readiness score
         user = request.user
         total = LearningModule.objects.count()
         completed = UserProgress.objects.filter(user=user, completed=True).count()
-        user.profile.readiness_score = min(100, int((completed / total) * 100)) if total > 0 else 0
-        user.profile.save()
+        
+        if hasattr(user, 'profile'):
+            user.profile.readiness_score = min(100, int((completed / total) * 100)) if total > 0 else 0
+            user.profile.save()
+            new_score = user.profile.readiness_score
+        else:
+            new_score = 0
 
-        return Response({'status': 'progress updated', 'completed': progress.completed, 'new_score': user.profile.readiness_score})
+        return Response({
+            'status': 'progress updated',
+            'completed': progress.completed,
+            'new_score': new_score
+        }, status=status.HTTP_200_OK)
+
 
 class AdminUserListView(generics.ListAPIView):
     queryset = User.objects.all().order_by('-date_joined')
     serializer_class = AdminUserManagementSerializer
     permission_classes = [permissions.AllowAny]
+
+
+# ==============================================================================
+# 3. Incident Recovery Guides (Integrated Views & Pre-Existing Seed Data)
+# ==============================================================================
+
+class IncidentGuideSerializer(serializers.ModelSerializer):
+    author_name = serializers.ReadOnlyField(source='author.username')
+
+    class Meta:
+        model = IncidentGuide
+        fields = [
+            'id',
+            'title',
+            'threat_category',
+            'severity',
+            'summary',
+            'immediate_steps',
+            'containment_checklist',
+            'author_name',
+            'created_at',
+            'updated_at',
+        ]
+
+
+def seed_default_guides(created_by_user=None):
+    """Seed comprehensive, realistic cybersecurity incident response runbooks if empty."""
+    default_guides = [
+        {
+            "title": "Compromised Corporate & Portal Credentials",
+            "threat_category": "Credential Harvesting",
+            "severity": "CRITICAL",
+            "summary": "Immediate containment procedure for employees or students who entered their institutional credentials, passwords, or MFA codes into a spoofed landing page.",
+            "immediate_steps": (
+                "1. Immediately access the legitimate portal from a clean, known-safe device and change your master password.\n"
+                "2. Terminate all active web and mobile application sessions under Security Settings.\n"
+                "3. Re-enroll multi-factor authentication (MFA) tokens to invalidate any adversary sessions.\n"
+                "4. Notify IT Security Operations via the Support Helpdesk triage desk with the phishing URL."
+            ),
+            "containment_checklist": (
+                "Master password changed to a 14+ character passphrase\n"
+                "All remote sessions forcibly disconnected\n"
+                "MFA authenticator keys refreshed\n"
+                "Account audit logs inspected for unauthorized logins"
+            )
+        },
+        {
+            "title": "Phishing Link Clicked & Suspicious File Downloaded",
+            "threat_category": "Malware & Ransomware Infiltration",
+            "severity": "CRITICAL",
+            "summary": "Emergency triage for scenarios where an email payload or attachment (.exe, .scr, .iso, .zip, macro-enabled doc) was downloaded or executed.",
+            "immediate_steps": (
+                "1. Disconnect the machine from Wi-Fi and unplug the physical Ethernet cable immediately.\n"
+                "2. Do NOT power off the computer—keep RAM memory intact for forensic memory analysis.\n"
+                "3. Inform the incident coordinator with the exact timestamp and attachment name.\n"
+                "4. Run a full offline scan using the endpoint protection / Windows Defender offline scanner."
+            ),
+            "containment_checklist": (
+                "Physical and wireless network disconnected\n"
+                "Suspicious file quarantined without opening\n"
+                "Host isolation verified on network router\n"
+                "Incident triage ticket dispatched to Admin"
+            )
+        },
+        {
+            "title": "M-Pesa & Mobile Money Social Engineering Incident",
+            "threat_category": "Financial Fraud & Vishing",
+            "severity": "HIGH",
+            "summary": "Rapid response guide for individuals targeted by fake customer care callers, fake transaction reversal SMS alerts, or SIM-swap solicitations.",
+            "immediate_steps": (
+                "1. Never share your M-Pesa PIN, one-time passwords (OTP), or date of birth over phone or SMS.\n"
+                "2. If PIN was disclosed, immediately dial the telecom customer line (*100# or *234#) on another trusted line to freeze the account.\n"
+                "3. Forward fraudulent SMS messages and sender numbers to the national telecom fraud hotline (e.g., 333).\n"
+                "4. Log the spoofed incident on the PhishShield directory for institutional record."
+            ),
+            "containment_checklist": (
+                "M-Pesa / Banking PIN changed immediately\n"
+                "Fraudulent number reported to telecom hotline 333\n"
+                "Account statement reviewed for unauthorized withdrawals\n"
+                "SIM-swap protection lock enabled with operator"
+            )
+        },
+        {
+            "title": "Session Hijacking & Cookie Theft Remediation",
+            "threat_category": "Web Security",
+            "severity": "MEDIUM",
+            "summary": "Protocol for remediating adversary-in-the-middle (AiTM) attacks where authentication session tokens are intercepted without password disclosure.",
+            "immediate_steps": (
+                "1. Open your browser settings and clear all cookies, cache, and hosted app data.\n"
+                "2. Navigate to your cloud provider (Google, Microsoft 365, GitHub) and click 'Sign out of all other web sessions'.\n"
+                "3. Review authorized OAuth third-party applications and revoke permissions for unknown services.\n"
+                "4. Verify that no unauthorized forwarding rules have been created in your mailbox settings."
+            ),
+            "containment_checklist": (
+                "Browser cookies and cached storage purged\n"
+                "Global session revocation executed\n"
+                "Mail forwarding rules verified\n"
+                "Third-party OAuth integrations audited"
+            )
+        }
+    ]
+
+    for g in default_guides:
+        IncidentGuide.objects.create(
+            title=g["title"],
+            threat_category=g["threat_category"],
+            severity=g["severity"],
+            summary=g["summary"],
+            immediate_steps=g["immediate_steps"],
+            containment_checklist=g["containment_checklist"],
+            author=created_by_user
+        )
+
+
+class IncidentGuideListCreateView(APIView):
+    """Lists all incident guides (for learners & admins) and allows admins to publish new ones."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        if not IncidentGuide.objects.exists():
+            seed_default_guides(created_by_user=request.user if request.user.is_staff else None)
+
+        guides = IncidentGuide.objects.all().order_by('-created_at')
+        serializer = IncidentGuideSerializer(guides, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        is_admin = request.user.is_staff or getattr(getattr(request.user, 'profile', None), 'is_admin', False)
+        if not is_admin:
+            return Response({'error': 'Forbidden: Administrator privileges required.'}, status=status.HTTP_403_FORBIDDEN)
+
+        serializer = IncidentGuideSerializer(data=request.data)
+        if serializer.is_valid():
+            guide = serializer.save(author=request.user)
+            ActivityAudit.objects.create(
+                user=request.user,
+                title="Incident Guide Authored",
+                description=f"Created guide: {guide.title} [{guide.severity}]",
+                activity_type="governance"
+            )
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class IncidentGuideDetailView(APIView):
+    """Allows administrators to retrieve, update (edit), or delete an existing incident guide."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _is_admin(self, user):
+        return user.is_staff or getattr(getattr(user, 'profile', None), 'is_admin', False)
+
+    def get(self, request, guide_id):
+        guide = get_object_or_404(IncidentGuide, id=guide_id)
+        serializer = IncidentGuideSerializer(guide)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def put(self, request, guide_id):
+        if not self._is_admin(request.user):
+            return Response({'error': 'Forbidden: Administrator privileges required.'}, status=status.HTTP_403_FORBIDDEN)
+
+        guide = get_object_or_404(IncidentGuide, id=guide_id)
+        serializer = IncidentGuideSerializer(guide, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            ActivityAudit.objects.create(
+                user=request.user,
+                title="Incident Guide Updated",
+                description=f"Admin modified guide #{guide.id}: {guide.title}",
+                activity_type="governance"
+            )
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, guide_id):
+        if not self._is_admin(request.user):
+            return Response({'error': 'Forbidden: Administrator privileges required.'}, status=status.HTTP_403_FORBIDDEN)
+
+        guide = get_object_or_404(IncidentGuide, id=guide_id)
+        title = guide.title
+        guide.delete()
+
+        ActivityAudit.objects.create(
+            user=request.user,
+            title="Incident Guide Deleted",
+            description=f"Permanently removed recovery guide: {title}",
+            activity_type="governance",
+            risk_score="CRITICAL"
+        )
+        return Response({'message': f'Guide "{title}" successfully removed.'}, status=status.HTTP_200_OK)

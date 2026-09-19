@@ -1,15 +1,42 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.utils import timezone
 
-class ChatMessage(models.Model):
-    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages')
-    receiver = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_messages', null=True, blank=True)
+
+class SupportTicketMessage(models.Model):
+    CATEGORY_CHOICES = [
+        ('PHISHING_URL', 'Phishing URL Analysis'),
+        ('CREDENTIAL_LEAK', 'Compromised Credentials'),
+        ('MALICIOUS_EMAIL', 'Suspicious Email Attachment'),
+        ('SYSTEM_INQUIRY', 'General System / Curriculum Query'),
+    ]
+
+    sender = models.ForeignKey(
+        User, 
+        on_delete=models.CASCADE, 
+        related_name='sent_support_messages'
+    )
+    recipient = models.ForeignKey(
+        User, 
+        on_delete=models.CASCADE, 
+        related_name='received_support_messages'
+    )
+    category = models.CharField(
+        max_length=50, 
+        choices=CATEGORY_CHOICES, 
+        default='PHISHING_URL'
+    )
+    subject = models.CharField(
+        max_length=200, 
+        blank=True, 
+        default="Security Incident Inquiry"
+    )
     message = models.TextField()
-    is_admin_reply = models.BooleanField(default=False)
-    timestamp = models.DateTimeField(auto_now_add=True)
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
-        ordering = ['timestamp']
+        ordering = ['created_at']
 
     def __str__(self):
-        return f"{self.sender.username} -> {self.receiver.username if self.receiver else 'Support'}: {self.message[:30]}"
+        return f"[{self.category}] {self.sender.username} -> {self.recipient.username}: {self.message[:30]}"
