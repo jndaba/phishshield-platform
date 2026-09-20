@@ -21,6 +21,8 @@ import ResetPassword from './pages/ResetPassword';
 import Certificates from './pages/Certificates';
 import ContactUs from './pages/ContactUs';
 import AdminControlPanel from './pages/AdminControlPanel';
+import MasterControlPanel from './pages/MasterControlPanel';
+import Profile from './pages/Profile';
 
 // Layout wrapper for authenticated pages
 const ProtectedLayout = () => {
@@ -54,6 +56,8 @@ const ProtectedLayout = () => {
             path="/admin-control-panel" 
             element={user.is_admin ? <AdminControlPanel /> : <Navigate to="/dashboard" replace />} 
           />
+          <Route path="/admin/control-panel" element={<MasterControlPanel />} />
+          <Route path="/profile" element={<Profile />} />
         </Routes>
       </main>
     </div>

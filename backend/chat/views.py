@@ -9,6 +9,26 @@ from .models import SupportTicketMessage
 from authentication.models import ActivityAudit
 
 
+class UnreadMessageCountView(APIView):
+    """
+    Returns unread incoming support messages count for badges (+1, +2, etc.)
+    displayed on ClientDashboard, AdminDashboard, and navigation sidebars.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        unread_count = SupportTicketMessage.objects.filter(
+            recipient=user,
+            is_read=False
+        ).count()
+
+        return Response({
+            'unread_count': unread_count,
+            'total_unread': unread_count  # Backwards compatibility alias
+        }, status=status.HTTP_200_OK)
+
+
 class ChatThreadView(APIView):
     """
     Handles bidirectional messaging threads between learners and administrators.
@@ -20,13 +40,16 @@ class ChatThreadView(APIView):
     def get(self, request):
         user = request.user
 
-        # 1. Background sidebar badge polling query
+        # 1. Background sidebar badge polling query shortcut
         if request.query_params.get('unread_summary') == 'true':
             unread_count = SupportTicketMessage.objects.filter(
                 recipient=user, 
                 is_read=False
             ).count()
-            return Response({'total_unread': unread_count}, status=status.HTTP_200_OK)
+            return Response({
+                'unread_count': unread_count,
+                'total_unread': unread_count
+            }, status=status.HTTP_200_OK)
 
         target_user_id = request.query_params.get('target_user_id')
 
@@ -140,6 +163,7 @@ class ChatThreadView(APIView):
             'is_read': False,
             'timestamp': msg.created_at.strftime('%b %d, %H:%M'),
         }, status=status.HTTP_201_CREATED)
-    
+
+
 # Alias for backwards compatibility with legacy imports
 ChatMessageListCreateView = ChatThreadView

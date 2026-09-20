@@ -8,10 +8,12 @@ from rest_framework import status, permissions, serializers
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
 from .models import UserProfile, ActivityAudit, PlatformContact
 from lms_content.models import LearningModule, UserProgress
 from simulation.models import SimulationResult, QuizSubmission
+from chat.models import SupportTicketMessage
 
 
 # ====================================================
@@ -65,7 +67,7 @@ class RegisterView(APIView):
                 'username': user.username,
                 'email': user.email,
                 'is_admin': profile.is_admin,
-                'readiness_score': profile.readiness_score
+                'readiness_score': 0 if profile.is_admin else profile.readiness_score
             }
         }, status=status.HTTP_201_CREATED)
 
@@ -90,6 +92,8 @@ class LoginView(APIView):
 
         refresh = RefreshToken.for_user(user)
         user_profile = getattr(user, 'profile', None)
+        is_admin_flag = user_profile.is_admin if user_profile else user.is_staff
+
         return Response({
             'refresh': str(refresh),
             'access': str(refresh.access_token),
@@ -97,8 +101,8 @@ class LoginView(APIView):
                 'id': user.id,
                 'username': user.username,
                 'email': user.email,
-                'is_admin': user_profile.is_admin if user_profile else user.is_staff,
-                'readiness_score': user_profile.readiness_score if user_profile else 0
+                'is_admin': is_admin_flag,
+                'readiness_score': 0 if is_admin_flag else (user_profile.readiness_score if user_profile else 0)
             }
         })
 
@@ -160,6 +164,7 @@ class CurrentUserStatsView(APIView):
     def get(self, request):
         user = request.user
         profile, _ = UserProfile.objects.get_or_create(user=user)
+        is_admin = profile.is_admin or user.is_staff
 
         total_modules = LearningModule.objects.count()
         completed_modules = UserProgress.objects.filter(user=user, completed=True).count()
@@ -175,12 +180,19 @@ class CurrentUserStatsView(APIView):
 
         passed_quiz = QuizSubmission.objects.filter(user=user, passed=True).exists()
 
+        # Dynamic unread support messages for live notification indicator
+        unread_support_count = SupportTicketMessage.objects.filter(
+            recipient=user,
+            is_read=False
+        ).count()
+
         return Response({
             'user': {
                 'username': user.username,
                 'email': user.email,
-                'is_admin': profile.is_admin,
-                'readiness_score': profile.readiness_score,
+                'is_admin': is_admin,
+                # Administrators do not maintain a learner readiness score
+                'readiness_score': 0 if is_admin else profile.readiness_score,
                 'streak_days': profile.streak_days,
             },
             'stats': {
@@ -190,7 +202,8 @@ class CurrentUserStatsView(APIView):
                 'total_simulations': total_sims,
                 'sim_accuracy': sim_accuracy,
                 'urls_scanned': url_scans_count,
-                'is_certified': passed_quiz and (completed_modules >= total_modules and total_modules > 0)
+                'is_certified': passed_quiz and (completed_modules >= total_modules and total_modules > 0),
+                'unread_messages_count': unread_support_count
             },
             'recent_activity': [{
                 'title': a.title,
@@ -212,9 +225,10 @@ class AdminMetricsView(APIView):
         if not is_admin:
             return Response({'error': 'Forbidden: Administrator privileges required.'}, status=status.HTTP_403_FORBIDDEN)
 
-        learners = User.objects.filter(is_staff=False).exclude(id=user.id)
-        if hasattr(User, 'profile'):
-            learners = learners.filter(Q(profile__is_admin=False) | Q(profile__isnull=True))
+        # Strictly exclude staff, superusers, and any user marked as admin in UserProfile
+        learners = User.objects.filter(is_staff=False).exclude(
+            Q(is_superuser=True) | Q(profile__is_admin=True) | Q(id=user.id)
+        ).distinct()
 
         total_learners = learners.count()
         total_modules = LearningModule.objects.count()
@@ -241,9 +255,16 @@ class AdminMetricsView(APIView):
 
         recent_audits = ActivityAudit.objects.all().order_by('-timestamp')[:8]
 
+        # Total unread support messages sent to this administrator
+        unread_admin_count = SupportTicketMessage.objects.filter(
+            recipient=user,
+            is_read=False
+        ).count()
+
         return Response({
             'total_learners': total_learners,
             'total_modules': total_modules,
+            'unread_messages_count': unread_admin_count,
             'learners': learner_data,
             'audit_trail': [{
                 'user': a.user.username,
@@ -294,7 +315,6 @@ class PlatformContactView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        # Guarantee initial baseline contact (Joel Ndaba) exists
         if not PlatformContact.objects.exists():
             PlatformContact.objects.create(
                 name="Joel Ndaba",
@@ -391,15 +411,18 @@ class AdminAllUsersListView(APIView):
             return Response({'error': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
 
         users = User.objects.all().order_by('-date_joined')
-        data = [{
-            'id': u.id,
-            'username': u.username,
-            'email': u.email,
-            'is_admin': u.is_staff or getattr(getattr(u, 'profile', None), 'is_admin', False),
-            'readiness_score': getattr(getattr(u, 'profile', None), 'readiness_score', 0),
-            'date_joined': u.date_joined.strftime('%b %d, %Y'),
-            'is_self': u.id == request.user.id
-        } for u in users]
+        data = []
+        for u in users:
+            is_adm = u.is_staff or getattr(getattr(u, 'profile', None), 'is_admin', False)
+            data.append({
+                'id': u.id,
+                'username': u.username,
+                'email': u.email,
+                'is_admin': is_adm,
+                'readiness_score': 0 if is_adm else getattr(getattr(u, 'profile', None), 'readiness_score', 0),
+                'date_joined': u.date_joined.strftime('%b %d, %Y'),
+                'is_self': u.id == request.user.id
+            })
 
         return Response(data)
 
@@ -446,23 +469,38 @@ class AdminUserDetailManageView(APIView):
 
         profile, _ = UserProfile.objects.get_or_create(user=target_user)
 
+        # 1. Update Administrator Status
         if is_admin is not None:
             if target_user.id == request.user.id and not is_admin:
                 return Response({'error': 'Safety restriction: You cannot demote your own admin account.'}, status=status.HTTP_400_BAD_REQUEST)
             target_user.is_staff = bool(is_admin)
             target_user.save()
             profile.is_admin = bool(is_admin)
+            if profile.is_admin:
+                profile.readiness_score = 0
             profile.save()
 
+        # 2. Reset Learner Readiness & Training History
         if reset_score:
             profile.readiness_score = 0
             profile.simulations_completed = 0
             profile.save()
 
+            UserProgress.objects.filter(user=target_user).delete()
+            SimulationResult.objects.filter(user=target_user).delete()
+
+            ActivityAudit.objects.create(
+                user=request.user,
+                title="Readiness Score Reset",
+                description=f"Admin {request.user.username} reset readiness score and attempts for {target_user.username}",
+                activity_type="governance",
+                risk_score="MEDIUM"
+            )
+
         return Response({
             'message': f'Updated {target_user.username} permissions successfully.',
             'is_admin': profile.is_admin,
-            'readiness_score': profile.readiness_score
+            'readiness_score': 0 if profile.is_admin else profile.readiness_score
         }, status=status.HTTP_200_OK)
 
 
@@ -472,6 +510,7 @@ class AdminUserDetailManageView(APIView):
 
 class UserProfileUpdateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def patch(self, request):
         user = request.user
@@ -479,34 +518,35 @@ class UserProfileUpdateView(APIView):
         email = request.data.get('email', '').strip()
         current_password = request.data.get('current_password')
         new_password = request.data.get('new_password')
+        avatar = request.FILES.get('avatar')
+
+        profile, _ = UserProfile.objects.get_or_create(user=user)
 
         if username and username != user.username:
             if User.objects.filter(username=username).exclude(id=user.id).exists():
-                return Response({'error': 'Username is already taken by another user.'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'error': 'Username is already taken.'}, status=status.HTTP_400_BAD_REQUEST)
             user.username = username
 
         if email and email != user.email:
             if User.objects.filter(email=email).exclude(id=user.id).exists():
-                return Response({'error': 'Email is already registered with another account.'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'error': 'Email is already registered.'}, status=status.HTTP_400_BAD_REQUEST)
             user.email = email
 
         if new_password:
-            if not current_password:
-                return Response({'error': 'Current password is required to set a new password.'}, status=status.HTTP_400_BAD_REQUEST)
-            if not user.check_password(current_password):
+            if not current_password or not user.check_password(current_password):
                 return Response({'error': 'Current password does not match.'}, status=status.HTTP_400_BAD_REQUEST)
             if len(new_password) < 6:
                 return Response({'error': 'New password must be at least 6 characters long.'}, status=status.HTTP_400_BAD_REQUEST)
             user.set_password(new_password)
 
-        user.save()
+        if avatar:
+            profile.avatar = avatar
 
-        ActivityAudit.objects.create(
-            user=user,
-            title="Profile Credentials Updated",
-            description="User modified account credentials or passphrase",
-            activity_type="account"
-        )
+        user.save()
+        profile.save()
+
+        is_adm = user.is_staff or profile.is_admin
+        avatar_url = profile.avatar.url if profile.avatar else None
 
         return Response({
             'message': 'Profile updated successfully.',
@@ -514,7 +554,8 @@ class UserProfileUpdateView(APIView):
                 'id': user.id,
                 'username': user.username,
                 'email': user.email,
-                'is_admin': user.is_staff or getattr(getattr(user, 'profile', None), 'is_admin', False),
-                'readiness_score': getattr(getattr(user, 'profile', None), 'readiness_score', 0)
+                'is_admin': is_adm,
+                'avatar': avatar_url,
+                'readiness_score': 0 if is_adm else profile.readiness_score
             }
         }, status=status.HTTP_200_OK)
