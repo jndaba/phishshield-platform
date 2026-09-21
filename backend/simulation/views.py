@@ -493,10 +493,28 @@ class RecordSimulationAttemptView(SubmitScenarioDecisionView):
 
 
 # ==============================================================================
-# 5. Assessment Quiz & Certificate Endpoints
+# 5. Assessment Quiz & Certificate Endpoints (25 Questions)
 # ==============================================================================
 
 DEFAULT_QUIZ_QUESTIONS = [
+    {
+        "question_text": "What is the primary psychological trigger exploited when an attacker mimics an executive requesting an urgent wire transfer?",
+        "option_a": "Scarcity",
+        "option_b": "Authority Impersonation",
+        "option_c": "Reciprocity",
+        "option_d": "Familiarity",
+        "correct_option": "B",
+        "explanation": "Authority impersonation exploits the human tendency to comply with requests from perceived leadership without verification."
+    },
+    {
+        "question_text": "Which part of an email header shows the true originating IP path of the message?",
+        "option_a": "Return-Path",
+        "option_b": "X-Mailer",
+        "option_c": "Received: from",
+        "option_d": "Reply-To",
+        "correct_option": "C",
+        "explanation": "The 'Received: from' headers trace the exact IP hop trajectory from sender to receiver."
+    },
     {
         "question_text": "What is the primary indicator of an Internationalized Domain Name (IDN) homograph attack?",
         "option_a": "A Punycode string beginning with 'xn--' in the browser address bar",
@@ -507,8 +525,17 @@ DEFAULT_QUIZ_QUESTIONS = [
         "explanation": "Punycode (e.g., xn--) is used by browsers to render non-ASCII Unicode characters into ASCII representation."
     },
     {
+        "question_text": "What is the function of SPF (Sender Policy Framework)?",
+        "option_a": "Encrypts the email body",
+        "option_b": "Digitally signs the email headers",
+        "option_c": "Lists IP addresses authorized to send on behalf of a domain",
+        "option_d": "Prevents malware execution",
+        "correct_option": "C",
+        "explanation": "SPF uses DNS TXT records to designate which IP addresses are authorized to send mail."
+    },
+    {
         "question_text": "Which email authentication protocol provides cryptographic validation that the message body was not altered in transit?",
-        "option_a": "SPF (Sender Policy Framework)",
+        "option_a": "SPF",
         "option_b": "DKIM (DomainKeys Identified Mail)",
         "option_c": "SMTP STARTTLS",
         "option_d": "DNSSEC",
@@ -516,13 +543,184 @@ DEFAULT_QUIZ_QUESTIONS = [
         "explanation": "DKIM uses public-key cryptography to digitally sign email headers and bodies."
     },
     {
-        "question_text": "In an Adversary-in-the-Middle (AiTM) phishing attack, what does the attacker reverse-proxy intercept to bypass MFA?",
-        "option_a": "The user's Wi-Fi WPA2 pre-shared key",
-        "option_b": "The active session cookie / bearer token",
-        "option_c": "The client's CPU hardware serial identifier",
+        "question_text": "What does a DMARC policy of 'p=reject' instruct the receiving server to do?",
+        "option_a": "Reject emails that fail SPF and DKIM alignment",
+        "option_b": "Forward the email to the spam folder",
+        "option_c": "Reject all emails from external domains",
+        "option_d": "Send an automatic reply to the sender",
+        "correct_option": "A",
+        "explanation": "DMARC 'reject' policy outright drops emails that fail authentication alignment."
+    },
+    {
+        "question_text": "What is 'Smishing'?",
+        "option_a": "Phishing attacks conducted via SMS text messages",
+        "option_b": "Phishing over voice calls",
+        "option_c": "Smashing hardware to prevent data recovery",
+        "option_d": "Using small-scale malware",
+        "correct_option": "A",
+        "explanation": "Smishing refers specifically to SMS-based social engineering."
+    },
+    {
+        "question_text": "Why is relying solely on the SMS 'Sender ID' (e.g., seeing 'BANK' as the sender) dangerous?",
+        "option_a": "Because banks don't use SMS",
+        "option_b": "Alphanumeric sender IDs can be easily spoofed by unauthorized gateways",
+        "option_c": "Sender IDs are encrypted and unreadable",
+        "option_d": "It requires an active data connection",
+        "correct_option": "B",
+        "explanation": "Offshore or unauthorized SMS gateways can inject custom alphanumeric sender IDs without verification."
+    },
+    {
+        "question_text": "What is the primary danger of 'Quishing' (QR Code Phishing)?",
+        "option_a": "QR codes contain highly contagious worms",
+        "option_b": "Standard text-based email filters cannot parse the graphical payload to inspect the URL",
+        "option_c": "They destroy the camera sensor",
+        "option_d": "They drain the mobile device battery",
+        "correct_option": "B",
+        "explanation": "Because the URL is embedded in an image matrix, traditional text scanners bypass it."
+    },
+    {
+        "question_text": "Why should users never click 'Enable Macros' on unexpected Microsoft Office documents?",
+        "option_a": "It corrupts the document formatting",
+        "option_b": "Macros allow embedded VBA code to execute and download malware/ransomware",
+        "option_c": "It alerts the sender that the email was opened",
+        "option_d": "It violates software licensing agreements",
+        "correct_option": "B",
+        "explanation": "Weaponized macros are a primary delivery vector for ransomware droppers."
+    },
+    {
+        "question_text": "In an Adversary-in-the-Middle (AiTM) attack, what specific asset does the attacker steal to bypass MFA?",
+        "option_a": "The user's Wi-Fi password",
+        "option_b": "The active HTTP session cookie",
+        "option_c": "The SMS OTP code",
         "option_d": "The router default gateway DNS IP",
         "correct_option": "B",
-        "explanation": "AiTM proxies capture session cookies after the user completes MFA, granting immediate session access without re-prompting."
+        "explanation": "AiTM reverse-proxies intercept the final session cookie issued after MFA is completed, granting immediate session access."
+    },
+    {
+        "question_text": "Which authentication method completely defeats AiTM proxy attacks?",
+        "option_a": "Six-digit SMS codes",
+        "option_b": "Authenticator App push notifications",
+        "option_c": "FIDO2 / WebAuthn Hardware Security Keys",
+        "option_d": "Complex 16-character passwords",
+        "correct_option": "C",
+        "explanation": "FIDO2 cryptographically binds the authentication token to the exact URL, causing AiTM proxies to fail."
+    },
+    {
+        "question_text": "What is a 'Watering Hole' attack?",
+        "option_a": "Flooding a server with DDoS traffic",
+        "option_b": "Compromising a specific legitimate website that a target group frequently visits to serve malware",
+        "option_c": "Stealing water utility infrastructure credentials",
+        "option_d": "Using a honeypot to trap hackers",
+        "correct_option": "B",
+        "explanation": "Attackers infect sites trusted by the target demographic to deploy drive-by downloads."
+    },
+    {
+        "question_text": "What is 'OAuth Consent Abuse'?",
+        "option_a": "Stealing a user's password via a fake login screen",
+        "option_b": "Tricking a user into granting a malicious cloud app persistent API access to their data",
+        "option_c": "Bypassing the firewall using a VPN",
+        "option_d": "Sharing passwords with colleagues",
+        "correct_option": "B",
+        "explanation": "Attackers use malicious applications to request OAuth tokens, bypassing the need for passwords entirely."
+    },
+    {
+        "question_text": "What technique do attackers use during 'Credential Stuffing'?",
+        "option_a": "Guessing passwords manually",
+        "option_b": "Using AI to generate new passwords",
+        "option_c": "Feeding millions of leaked username/password pairs into automated login scripts",
+        "option_d": "Intercepting unencrypted Wi-Fi traffic",
+        "correct_option": "C",
+        "explanation": "Credential stuffing exploits the human tendency to reuse passwords across multiple websites."
+    },
+    {
+        "question_text": "If you realize you have clicked a malicious link and downloaded a file, what is the most critical first step?",
+        "option_a": "Turn off the computer immediately",
+        "option_b": "Run a disk defragmentation",
+        "option_c": "Disconnect the device from the network (Wi-Fi/Ethernet) immediately",
+        "option_d": "Forward the email to your contacts to warn them",
+        "correct_option": "C",
+        "explanation": "Network isolation prevents malware from communicating with command-and-control servers or moving laterally."
+    },
+    {
+        "question_text": "Why should you NOT power off a machine suspected of a malware infection?",
+        "option_a": "It deletes the operating system",
+        "option_b": "It destroys forensic evidence stored in volatile RAM (like decryption keys)",
+        "option_c": "It automatically pays the ransomware demand",
+        "option_d": "It causes the hardware to overheat",
+        "correct_option": "B",
+        "explanation": "RAM memory holds vital forensic data that is lost upon power loss."
+    },
+    {
+        "question_text": "What defines the 'Principle of Least Privilege' (PoLP)?",
+        "option_a": "Users should have no privileges at all",
+        "option_b": "Granting users the absolute minimum permissions necessary to perform their specific job functions",
+        "option_c": "Allowing all employees administrative access to improve efficiency",
+        "option_d": "Restricting internet access completely",
+        "correct_option": "B",
+        "explanation": "PoLP limits the blast radius of an insider threat or compromised account."
+    },
+    {
+        "question_text": "How do AI audio deepfakes enhance Vishing attacks?",
+        "option_a": "They hack the phone network",
+        "option_b": "They clone the voices of trusted executives to authorize fraudulent wire transfers",
+        "option_c": "They translate text to Morse code",
+        "option_d": "They generate infinite SMS messages",
+        "correct_option": "B",
+        "explanation": "Attackers use synthetic voice cloning to bypass human vocal verification."
+    },
+    {
+        "question_text": "What is the primary danger of an 'Evil Twin' Wi-Fi attack?",
+        "option_a": "It drains your battery twice as fast",
+        "option_b": "It is a rogue access point that mimics a legitimate network to intercept unencrypted traffic",
+        "option_c": "It forces your device to factory reset",
+        "option_d": "It physically damages the Wi-Fi card",
+        "correct_option": "B",
+        "explanation": "Evil Twins trick devices into connecting to attacker-controlled hardware."
+    },
+    {
+        "question_text": "What does a Supply Chain Attack target?",
+        "option_a": "Logistics and shipping trucks",
+        "option_b": "A trusted third-party vendor's software updates to backdoor the primary target",
+        "option_c": "The power supply of a data center",
+        "option_d": "Customer credit cards at point-of-sale",
+        "correct_option": "B",
+        "explanation": "Attackers inject malicious code into trusted vendor software updates (e.g., SolarWinds)."
+    },
+    {
+        "question_text": "What is the core assumption of Zero Trust Architecture (ZTA)?",
+        "option_a": "The firewall is impenetrable",
+        "option_b": "All employees are highly trained",
+        "option_c": "The network is already compromised; never trust, always verify",
+        "option_d": "Antivirus software catches 100% of threats",
+        "correct_option": "C",
+        "explanation": "ZTA mandates continuous identity and context verification regardless of network location."
+    },
+    {
+        "question_text": "Why are physical 'USB Drop' attacks successful?",
+        "option_a": "USB drives emit electromagnetic pulses",
+        "option_b": "They exploit human curiosity, causing employees to plug infected media into secure workstations",
+        "option_c": "They hack Bluetooth connections",
+        "option_d": "They bypass physical security guards",
+        "correct_option": "B",
+        "explanation": "Dropped USBs rely on curiosity. Some act as HID devices to inject malicious keystrokes."
+    },
+    {
+        "question_text": "What is the most effective organizational response to a reported phishing email?",
+        "option_a": "Firing the employee who reported it",
+        "option_b": "Ignoring it if it was caught by the spam filter",
+        "option_c": "Using SOAR platforms to automatically search and purge the threat from all other inboxes",
+        "option_d": "Replying to the attacker to waste their time",
+        "correct_option": "C",
+        "explanation": "Rapid reporting enables automated containment, purging the threat across the entire enterprise."
+    },
+    {
+        "question_text": "Which of the following is NOT considered a valid method of verifying a suspicious email request from an executive?",
+        "option_a": "Calling the executive on their known corporate phone number",
+        "option_b": "Replying directly to the suspicious email to ask if it is real",
+        "option_c": "Reaching out to the executive via an internal corporate messaging platform (e.g., Slack/Teams)",
+        "option_d": "Walking over to their office to ask them directly",
+        "correct_option": "B",
+        "explanation": "Replying to the email guarantees you are only communicating with the attacker. Always use out-of-band verification."
     }
 ]
 
@@ -530,17 +728,40 @@ DEFAULT_QUIZ_QUESTIONS = [
 def seed_quiz_if_needed():
     if not QuizQuestion.objects.exists():
         for q in DEFAULT_QUIZ_QUESTIONS:
-            QuizQuestion.objects.create(**q)
+            QuizQuestion.objects.create(
+                question_text=q["question_text"],
+                option_a=q["option_a"],
+                option_b=q["option_b"],
+                option_c=q["option_c"],
+                option_d=q["option_d"],
+                correct_option=q["correct_option"],
+                explanation=q["explanation"]
+            )
 
 
-class QuizQuestionListView(generics.ListAPIView):
-    queryset = QuizQuestion.objects.all()
-    serializer_class = QuizQuestionSerializer
+class QuizQuestionListView(APIView):
+    """
+    Returns properly formatted Assessment questions for the Learner view.
+    Translates the flat database columns into a structured 'options' dictionary.
+    """
     permission_classes = [permissions.IsAuthenticated]
 
-    def get_queryset(self):
+    def get(self, request):
         seed_quiz_if_needed()
-        return QuizQuestion.objects.all()
+        questions = QuizQuestion.objects.all().order_by('id')
+        data = []
+        for q in questions:
+            data.append({
+                'id': q.id,
+                'question': q.question_text,
+                'options': {
+                    'A': q.option_a,
+                    'B': q.option_b,
+                    'C': q.option_c,
+                    'D': q.option_d
+                }
+            })
+        return Response(data, status=status.HTTP_200_OK)
 
 
 class QuizSubmitView(APIView):

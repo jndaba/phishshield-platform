@@ -6,14 +6,8 @@ import {
   AlertTriangle, 
   CheckCircle2, 
   XCircle, 
-  ChevronRight, 
-  User, 
-  Clock, 
-  Tag, 
-  HelpCircle, 
-  Sparkles,
-  RefreshCw,
-  Mail
+  Mail,
+  RefreshCw
 } from 'lucide-react';
 import axios from 'axios';
 
@@ -22,8 +16,6 @@ export default function SimulationInbox() {
   const [activeScenario, setActiveScenario] = useState(null);
   const [stats, setStats] = useState({ total: 10, completed: 0, correct: 0, accuracy: 0 });
   const [loading, setLoading] = useState(true);
-
-  // Verdict submission state
   const [submitting, setSubmitting] = useState(false);
   const [feedbackData, setFeedbackData] = useState(null);
 
@@ -94,8 +86,6 @@ export default function SimulationInbox() {
       );
 
       setFeedbackData(res.data);
-
-      // Update state locally
       setScenarios((prev) =>
         prev.map((s) => {
           if (s.id === activeScenario.id) {
@@ -112,7 +102,6 @@ export default function SimulationInbox() {
         })
       );
 
-      // Re-fetch aggregate stats
       const statsRes = await axios.get('http://127.0.0.1:8000/api/simulation/inbox/');
       setStats(statsRes.data?.stats || stats);
     } catch (err) {
@@ -128,10 +117,10 @@ export default function SimulationInbox() {
       <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="p-2 rounded-xl bg-blue-50 border border-blue-200 text-blue-600 shadow-xs">
+            <span className="p-2 rounded-xl bg-blue-50 border border-blue-200 text-blue-950 shadow-xs">
               <Inbox className="w-5 h-5" />
             </span>
-            <span className="text-xs font-bold text-blue-600 uppercase tracking-widest">
+            <span className="text-xs font-bold text-blue-950 uppercase tracking-widest">
               Live Threat Sandbox
             </span>
           </div>
@@ -152,25 +141,23 @@ export default function SimulationInbox() {
           <div className="h-6 w-px bg-slate-200" />
           <div className="text-center px-2">
             <span className="block text-[10px] uppercase font-bold text-slate-400">Accuracy</span>
-            <strong className="text-xs font-black text-blue-600">{stats.accuracy}%</strong>
+            <strong className="text-xs font-black text-blue-950">{stats.accuracy}%</strong>
           </div>
         </div>
       </div>
 
-      {/* Main Mailbox Frame */}
       <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-4 min-h-0">
         
-        {/* Scenario List (Left: 4 Cols) */}
+        {/* Scenario List */}
         <div className="md:col-span-4 bg-white border border-slate-200 rounded-2xl p-3.5 shadow-xs flex flex-col min-h-0">
           <div className="pb-2.5 mb-2 border-b border-slate-100 flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-              <Mail className="w-4 h-4 text-blue-600" />
+              <Mail className="w-4 h-4 text-blue-950" />
               Inbox Queue (10 Scenarios)
             </span>
             <button
               onClick={fetchInbox}
-              title="Reload Scenarios"
-              className="p-1 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-slate-50 transition cursor-pointer"
+              className="p-1 rounded-lg text-slate-400 hover:text-blue-950 hover:bg-slate-50 transition cursor-pointer"
             >
               <RefreshCw className="w-3.5 h-3.5" />
             </button>
@@ -193,8 +180,8 @@ export default function SimulationInbox() {
                     onClick={() => handleSelectScenario(scen)}
                     className={`p-3 rounded-xl border transition flex flex-col space-y-1.5 cursor-pointer select-none ${
                       isSelected
-                        ? 'bg-blue-50 border-blue-300 shadow-xs ring-1 ring-blue-100'
-                        : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/80'
+                        ? 'bg-blue-50 border-blue-950 shadow-xs ring-1 ring-blue-200'
+                        : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2">
@@ -218,7 +205,7 @@ export default function SimulationInbox() {
                       </div>
                     </div>
 
-                    <h4 className={`text-xs font-bold truncate ${isSelected ? 'text-blue-700' : 'text-slate-900'}`}>
+                    <h4 className={`text-xs font-bold truncate ${isSelected ? 'text-blue-950' : 'text-slate-900'}`}>
                       {scen.subject}
                     </h4>
 
@@ -233,11 +220,10 @@ export default function SimulationInbox() {
           </div>
         </div>
 
-        {/* Email Viewer & Decision Workspace (Right: 8 Cols) */}
+        {/* Email Viewer */}
         <div className="md:col-span-8 bg-white border border-slate-200 rounded-2xl shadow-xs flex flex-col min-h-0 overflow-hidden">
           {activeScenario ? (
             <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
-              {/* Email Headers Inspection Header */}
               <div className="p-5 border-b border-slate-100 bg-slate-50/70 space-y-3 shrink-0">
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -245,10 +231,10 @@ export default function SimulationInbox() {
                       {activeScenario.subject}
                     </h2>
                     <div className="flex items-center gap-2 mt-1">
-                      <span className="text-[11px] font-bold text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100">
+                      <span className="text-[11px] font-bold text-blue-950 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200">
                         {activeScenario.threat_category}
                       </span>
-                      <span className="text-[11px] text-slate-400">
+                      <span className="text-[11px] font-bold text-slate-400">
                         Scenario #{activeScenario.scenario_number} of 10
                       </span>
                     </div>
@@ -265,14 +251,9 @@ export default function SimulationInbox() {
                     <span className="text-[11px] font-bold text-slate-400 w-12">To:</span>
                     <span className="text-slate-700 font-mono text-[11px]">{activeScenario.recipient_email}</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-bold text-slate-400 w-12">Date:</span>
-                    <span className="text-slate-500">{activeScenario.sent_time_display}</span>
-                  </div>
                 </div>
               </div>
 
-              {/* Email Body Payload */}
               <div className="p-6 flex-1 bg-white">
                 <div 
                   className="prose prose-sm max-w-none text-xs sm:text-sm text-slate-800 leading-relaxed"
@@ -280,9 +261,8 @@ export default function SimulationInbox() {
                 />
               </div>
 
-              {/* Detailed Decision / Explanation Section */}
+              {/* Action Board */}
               <div className="p-5 border-t border-slate-200 bg-slate-50 space-y-4 shrink-0">
-                {/* Decision Trigger Buttons */}
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
                   <div className="text-xs text-slate-600">
                     <strong className="text-slate-900 block font-bold">Your Security Verdict:</strong>
@@ -318,14 +298,13 @@ export default function SimulationInbox() {
                   </div>
                 </div>
 
-                {/* Detailed Feedback & Forensic Explanation Box */}
+                {/* Feedback Box */}
                 {feedbackData && (
                   <div className={`p-4 rounded-xl border text-xs space-y-3 animate-in fade-in duration-300 ${
                     feedbackData.is_correct 
                       ? 'bg-emerald-50/70 border-emerald-200 text-emerald-950' 
                       : 'bg-red-50/70 border-red-200 text-red-950'
                   }`}>
-                    {/* Verdict Result Header */}
                     <div className="flex items-center gap-2 font-black text-sm">
                       {feedbackData.is_correct ? (
                         <>
@@ -344,32 +323,14 @@ export default function SimulationInbox() {
                       {feedbackData.feedback_summary}
                     </p>
 
-                    {/* Detailed Technical Explanation */}
                     <div className="bg-white/90 p-3.5 rounded-lg border border-current/10 space-y-2 text-slate-800">
-                      <strong className="text-[11px] font-bold text-blue-600 uppercase tracking-wider block">
+                      <strong className="text-[11px] font-bold text-blue-950 uppercase tracking-wider block">
                         Forensic Explanation &amp; Attack Breakdown:
                       </strong>
                       <p className="text-xs leading-relaxed">
                         {feedbackData.detailed_explanation}
                       </p>
                     </div>
-
-                    {/* Key Indicators Checklist */}
-                    {feedbackData.key_indicators && feedbackData.key_indicators.length > 0 && (
-                      <div className="space-y-1.5 pt-1">
-                        <strong className="text-[10px] font-bold uppercase tracking-wider text-slate-600 block">
-                          Identified Artifacts:
-                        </strong>
-                        <ul className="space-y-1">
-                          {feedbackData.key_indicators.map((item, idx) => (
-                            <li key={idx} className="flex items-start gap-2 text-xs text-slate-700">
-                              <span className="text-blue-600 font-bold">&bull;</span>
-                              <span>{item}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
                   </div>
                 )}
               </div>

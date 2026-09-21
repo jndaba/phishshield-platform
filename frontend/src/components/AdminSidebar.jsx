@@ -4,16 +4,15 @@ import {
   ShieldCheck, 
   LayoutDashboard, 
   Sliders, 
-  Search, 
-  Mail, 
-  LifeBuoy, 
+  BookOpen,
   PhoneCall, 
+  Search, 
+  MessageSquare, 
   Users, 
-  FileText, 
+  UserCheck,
   LogOut,
   ShieldAlert,
-  Home,
-  UserCog
+  Home
 } from 'lucide-react';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
@@ -44,62 +43,47 @@ export default function AdminSidebar() {
   }, []);
 
   const navItems = [
-    { to: '/admin/dashboard', label: 'Governance Cockpit', icon: <LayoutDashboard className="w-4 h-4" /> },
-    { to: '/admin/control-panel', label: 'Master Control Panel', icon: <Sliders className="w-4 h-4 text-blue-600" /> },
-    { to: '/chat', label: 'Incident Triage Console', icon: <LifeBuoy className="w-4 h-4" />, hasBadge: true },
-    { to: '/admin/users', label: 'User Registry & Roles', icon: <Users className="w-4 h-4" /> },
-    { to: '/recovery', label: 'Runbook Authoring', icon: <FileText className="w-4 h-4" /> },
-    { to: '/contact', label: 'Directory Management', icon: <PhoneCall className="w-4 h-4" /> },
-    { to: '/scanner', label: 'Forensic URL Scanner', icon: <Search className="w-4 h-4" /> },
-    { to: '/simulation', label: 'Mailbox Scenario Audit', icon: <Mail className="w-4 h-4" /> },
-    { to: '/profile', label: 'Profile & Member Roster', icon: <UserCog className="w-4 h-4 text-blue-600" /> },
+    { to: '/admin-console', label: 'Admin Console', icon: <LayoutDashboard className="w-4 h-4" /> },
+    { to: '/admin/control-panel', label: 'Master Control Panel', icon: <Sliders className="w-4 h-4" /> },
+    { to: '/recovery', label: 'Runbook Authoring', icon: <BookOpen className="w-4 h-4" /> },
+    { to: '/contact', label: 'Contact Management', icon: <PhoneCall className="w-4 h-4" /> },
+    { to: '/scanner', label: 'URL Scanner', icon: <Search className="w-4 h-4" /> },
+    { to: '/chat', label: 'Messages', icon: <MessageSquare className="w-4 h-4" />, hasBadge: true },
+    { to: '/admin/users', label: 'Member Roster', icon: <Users className="w-4 h-4" /> },
+    { to: '/profile', label: 'Profile', icon: <UserCheck className="w-4 h-4" /> },
   ];
 
   return (
-    <aside className="w-64 bg-white text-slate-700 flex flex-col justify-between border-r border-slate-200 shrink-0 h-screen sticky top-0 shadow-xs">
+    <aside className="w-64 bg-blue-950 text-blue-50 flex flex-col justify-between border-r border-blue-900 shrink-0 h-screen sticky top-0 shadow-2xl">
       <div className="flex flex-col min-h-0">
         {/* Brand Header */}
-        <div className="p-5 border-b border-slate-100 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-600 rounded-xl text-white shadow-xs">
+        <div className="p-5 border-b border-blue-900 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-3 hover:opacity-90 transition">
+            <div className="p-2 bg-blue-900 rounded-xl text-white shadow-xs border border-blue-800">
               <ShieldCheck className="w-5 h-5 stroke-[2.5]" />
             </div>
             <div>
-              <h1 className="font-extrabold text-slate-900 text-sm tracking-tight leading-tight">
-                Phish<span className="text-blue-600">Shield</span>
+              <h1 className="font-extrabold text-white text-sm tracking-tight leading-tight">
+                Phish<span className="text-blue-400">Shield</span>
               </h1>
-              <p className="text-[10px] text-blue-600 uppercase tracking-widest font-bold">
+              <p className="text-[10px] text-blue-300 uppercase tracking-widest font-bold">
                 Admin Console
               </p>
             </div>
-          </div>
+          </Link>
 
-          {/* Home Landing Link (Retains Session State) */}
           <Link
             to="/"
             title="Return to Public Home / Landing"
-            className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition"
+            className="p-1.5 rounded-lg text-blue-300 hover:text-white hover:bg-blue-900 transition cursor-pointer"
           >
             <Home className="w-4 h-4" />
           </Link>
         </div>
 
-        {/* Admin Identity Badge */}
-        <div className="mx-4 mt-4 px-3.5 py-2.5 bg-blue-50/70 rounded-xl border border-blue-200/80 flex items-center gap-2.5">
-          <div className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse" />
-          <div className="min-w-0">
-            <p className="text-xs font-bold text-slate-900 truncate">
-              {user?.username || 'Administrator'}
-            </p>
-            <p className="text-[10px] text-blue-700 font-semibold uppercase tracking-wider">
-              Privileged Staff
-            </p>
-          </div>
-        </div>
-
         {/* Workspace Navigation */}
         <div className="px-4 py-4 overflow-y-auto flex-1">
-          <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase px-3 block mb-2">
+          <span className="text-[10px] font-bold text-blue-400/70 tracking-wider uppercase px-3 block mb-2">
             Operations &amp; Control
           </span>
           <nav className="space-y-1 text-xs font-medium">
@@ -110,8 +94,8 @@ export default function AdminSidebar() {
                 className={({ isActive }) =>
                   `flex items-center justify-between px-3 py-2.5 rounded-xl font-bold transition ${
                     isActive
-                      ? 'bg-blue-50 text-blue-700 shadow-xs'
-                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                      ? 'bg-blue-900 text-white shadow-xs border border-blue-800'
+                      : 'text-blue-200 hover:bg-blue-900 hover:text-white'
                   }`
                 }
               >
@@ -121,7 +105,7 @@ export default function AdminSidebar() {
                 </div>
 
                 {item.hasBadge && unreadCount > 0 && (
-                  <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-black leading-none text-white bg-rose-600 rounded-full animate-bounce shrink-0">
+                  <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-black leading-none text-blue-950 bg-white rounded-full animate-bounce shrink-0">
                     +{unreadCount}
                   </span>
                 )}
@@ -131,44 +115,44 @@ export default function AdminSidebar() {
         </div>
 
         {/* Master Control Notice */}
-        <div className="mx-4 mb-4 p-3.5 bg-slate-50 rounded-xl border border-slate-200">
-          <div className="flex items-center gap-1.5 mb-1 text-slate-700 font-bold text-xs">
-            <ShieldAlert className="w-3.5 h-3.5 text-blue-600" />
+        <div className="mx-4 mb-4 p-3.5 bg-blue-900 rounded-xl border border-blue-800">
+          <div className="flex items-center gap-1.5 mb-1 text-white font-bold text-xs">
+            <ShieldAlert className="w-3.5 h-3.5 text-blue-400" />
             <span>Full Authority Mode</span>
           </div>
-          <p className="text-[10px] text-slate-500 leading-relaxed">
+          <p className="text-[10px] text-blue-200 opacity-90 leading-relaxed">
             Content creation, deletion, questions, and user privileges are centralized in the Master Control Panel.
           </p>
         </div>
       </div>
 
       {/* User Session Footer */}
-      <div className="p-4 border-t border-slate-100 flex items-center justify-between bg-slate-50/50">
-        <Link to="/profile" className="flex items-center gap-2.5 truncate hover:opacity-80 transition">
+      <div className="p-4 border-t border-blue-900 flex items-center justify-between bg-blue-950 hover:bg-blue-900 transition">
+        <Link to="/profile" className="flex items-center gap-2.5 truncate hover:opacity-80 transition cursor-pointer">
           {user?.avatar ? (
             <img 
               src={user.avatar.startsWith('http') ? user.avatar : `http://127.0.0.1:8000${user.avatar}`} 
               alt={user.username} 
-              className="w-8 h-8 rounded-full object-cover border border-blue-200 shrink-0 shadow-xs"
+              className="w-8 h-8 rounded-full object-cover border border-blue-800 shrink-0 shadow-xs"
             />
           ) : (
-            <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-black flex items-center justify-center text-xs shrink-0 shadow-xs">
+            <div className="w-8 h-8 rounded-full bg-blue-800 text-white border border-blue-700 font-black flex items-center justify-center text-xs shrink-0 shadow-xs">
               {user?.username?.substring(0, 2).toUpperCase() || 'AD'}
             </div>
           )}
           <div className="truncate">
-            <p className="text-xs font-bold text-slate-900 truncate">
+            <p className="text-xs font-bold text-white truncate">
               {user?.username || 'Administrator'}
             </p>
-            <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider truncate">
-              System Administrator
+            <p className="text-[10px] font-bold text-blue-300 uppercase tracking-wider truncate">
+              Administrator
             </p>
           </div>
         </Link>
         <button
           onClick={handleLogout}
           title="Sign Out"
-          className="text-slate-400 hover:text-red-600 hover:bg-red-50 transition p-1.5 rounded-lg cursor-pointer"
+          className="text-blue-300 hover:text-white hover:bg-blue-800 transition p-1.5 rounded-lg cursor-pointer"
         >
           <LogOut className="w-4 h-4" />
         </button>

@@ -53,7 +53,6 @@ export default function MailSandbox() {
         explanation: res.data.explanation
       });
     } catch (err) {
-      // Offline/Local evaluation fallback
       const isCorrect = (actionType === 'phish' && selectedEmail.is_phishing) || (actionType === 'safe' && !selectedEmail.is_phishing);
       setFeedback({
         isCorrect,
@@ -99,24 +98,24 @@ export default function MailSandbox() {
     <div className="max-w-7xl mx-auto p-8 h-full flex flex-col">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900">Virtual Mail Sandbox</h2>
-          <p className="text-xs text-slate-500">Inspect email headers, analyze social engineering signals, and flag threats safely[cite: 1].</p>
+          <h2 className="text-2xl font-bold text-slate-900">Mailbox Sandbox Management</h2>
+          <p className="text-xs text-slate-500">Configure and inspect email mockups deployed to learner sandboxes.</p>
         </div>
         {user?.is_admin && (
           <button
             onClick={() => setShowCreateModal(true)}
-            className="bg-teal-600 hover:bg-teal-700 text-white font-semibold px-4 py-2 rounded-lg text-xs transition flex items-center gap-1.5 shadow-sm"
+            className="bg-blue-950 hover:bg-blue-900 text-white font-semibold px-4 py-2.5 rounded-xl text-xs transition flex items-center gap-1.5 shadow-md cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" /> Add Email Mockup
           </button>
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-1 bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-sm min-h-[550px]">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-1 bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-xs min-h-[550px]">
         {/* Inbox Sidebar */}
         <div className="border-r border-slate-200/80 flex flex-col bg-slate-50/60">
           <div className="p-3 border-b border-slate-200/80 flex items-center justify-between text-[11px] font-bold uppercase text-slate-400">
-            <span>Simulated Inbox ({emails.length})</span>
+            <span>Scenario Registry ({emails.length})</span>
             <Clock className="w-3.5 h-3.5" />
           </div>
           <div className="overflow-y-auto flex-1 divide-y divide-slate-100">
@@ -124,12 +123,12 @@ export default function MailSandbox() {
               <div
                 key={email.id}
                 onClick={() => { setSelectedEmail(email); setFeedback(null); }}
-                className={`p-3.5 cursor-pointer transition flex items-start justify-between ${selectedEmail?.id === email.id ? 'bg-teal-50/80 border-l-4 border-teal-600' : 'hover:bg-slate-100/70'}`}
+                className={`p-3.5 cursor-pointer transition flex items-start justify-between ${selectedEmail?.id === email.id ? 'bg-blue-50/80 border-l-4 border-blue-950' : 'hover:bg-slate-100/70'}`}
               >
                 <div className="truncate pr-2">
                   <div className="flex items-center gap-1.5 mb-1">
                     <span className="text-xs font-bold text-slate-900 truncate">{email.sender_name}</span>
-                    <span className={`text-[9px] px-1.5 py-0.2 rounded font-semibold uppercase ${email.difficulty === 'hard' ? 'bg-red-100 text-red-700' : email.difficulty === 'medium' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                    <span className={`text-[9px] px-1.5 py-0.2 rounded font-semibold uppercase ${email.difficulty === 'hard' ? 'bg-rose-100 text-rose-800' : email.difficulty === 'medium' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}`}>
                       {email.difficulty}
                     </span>
                   </div>
@@ -138,7 +137,7 @@ export default function MailSandbox() {
                 {user?.is_admin && (
                   <button
                     onClick={(e) => handleDeleteEmail(email.id, e)}
-                    className="text-slate-400 hover:text-red-500 p-1"
+                    className="text-slate-400 hover:text-rose-600 p-1 cursor-pointer transition"
                     title="Delete Scenario"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -156,8 +155,8 @@ export default function MailSandbox() {
               <div className="border-b border-slate-200/80 pb-4 mb-4">
                 <h3 className="text-lg font-bold text-slate-900 mb-2">{selectedEmail.subject}</h3>
                 <div className="text-xs text-slate-500 space-y-1">
-                  <p><span className="font-semibold text-slate-700">From:</span> {selectedEmail.sender_name} &lt;<span className="text-teal-700 font-medium">{selectedEmail.sender_email}</span>&gt;</p>
-                  <p><span className="font-semibold text-slate-700">To:</span> security-trainee@phishshield.internal</p>
+                  <p><span className="font-semibold text-slate-700">From:</span> {selectedEmail.sender_name} &lt;<span className="text-blue-950 font-bold">{selectedEmail.sender_email}</span>&gt;</p>
+                  <p><span className="font-semibold text-slate-700">Nature:</span> {selectedEmail.is_phishing ? 'Phishing / Malicious' : 'Safe / Legitimate'}</p>
                 </div>
               </div>
 
@@ -168,39 +167,39 @@ export default function MailSandbox() {
             </div>
           ) : (
             <div className="flex items-center justify-center h-full text-slate-400 text-xs">
-              Select an email from the inbox to begin analysis.
+              Select an email from the registry to inspect content.
             </div>
           )}
 
-          {/* Feedback & Actions */}
+          {/* Admin Evaluation Testing */}
           {selectedEmail && (
             <div className="mt-6 pt-4 border-t border-slate-200/80">
+              <div className="flex gap-4">
+                <button
+                  onClick={() => handleAction('phish')}
+                  className="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+                >
+                  <ShieldAlert className="w-4 h-4" /> Test Report Phishing
+                </button>
+                <button
+                  onClick={() => handleAction('safe')}
+                  className="flex-1 bg-blue-950 hover:bg-blue-900 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+                >
+                  <ShieldCheck className="w-4 h-4" /> Test Mark Legitimate
+                </button>
+              </div>
+
               {feedback && (
-                <div className={`p-4 rounded-xl border mb-4 ${feedback.isCorrect ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
+                <div className={`p-4 rounded-xl border mt-4 ${feedback.isCorrect ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'}`}>
                   <div className="flex items-center gap-2 mb-1">
-                    {feedback.isCorrect ? <CheckCircle className="w-4 h-4 text-emerald-600" /> : <AlertOctagon className="w-4 h-4 text-red-600" />}
-                    <span className={`font-bold text-xs ${feedback.isCorrect ? 'text-emerald-900' : 'text-red-900'}`}>
-                      {feedback.isCorrect ? "Accurate Threat Call!" : "Vulnerability Triggered"}
+                    {feedback.isCorrect ? <CheckCircle className="w-4 h-4 text-emerald-600" /> : <AlertOctagon className="w-4 h-4 text-rose-600" />}
+                    <span className={`font-bold text-xs ${feedback.isCorrect ? 'text-emerald-900' : 'text-rose-900'}`}>
+                      {feedback.isCorrect ? "Test Accurate" : "Test Failed (Vulnerability Triggered)"}
                     </span>
                   </div>
                   <p className="text-xs text-slate-600 leading-relaxed">{feedback.explanation}</p>
                 </div>
               )}
-
-              <div className="flex gap-4">
-                <button
-                  onClick={() => handleAction('phish')}
-                  className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition flex items-center justify-center gap-2 shadow-sm"
-                >
-                  <ShieldAlert className="w-4 h-4" /> Report as Phishing Attack
-                </button>
-                <button
-                  onClick={() => handleAction('safe')}
-                  className="flex-1 bg-teal-600 hover:bg-teal-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition flex items-center justify-center gap-2 shadow-sm"
-                >
-                  <ShieldCheck className="w-4 h-4" /> Mark as Legitimate Email
-                </button>
-              </div>
             </div>
           )}
         </div>
@@ -221,7 +220,7 @@ export default function MailSandbox() {
                     placeholder="e.g. PayPal Security"
                     value={formData.sender_name}
                     onChange={(e) => setFormData({ ...formData, sender_name: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-teal-500"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-950"
                   />
                 </div>
                 <div>
@@ -232,7 +231,7 @@ export default function MailSandbox() {
                     placeholder="e.g. alert@paypal-verify.net"
                     value={formData.sender_email}
                     onChange={(e) => setFormData({ ...formData, sender_email: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-teal-500"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-950"
                   />
                 </div>
               </div>
@@ -245,7 +244,7 @@ export default function MailSandbox() {
                   placeholder="e.g. Account suspended due to unusual login"
                   value={formData.subject}
                   onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-teal-500"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-950"
                 />
               </div>
 
@@ -255,7 +254,7 @@ export default function MailSandbox() {
                   <select
                     value={formData.difficulty}
                     onChange={(e) => setFormData({ ...formData, difficulty: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-teal-500"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-950 bg-white"
                   >
                     <option value="easy">Easy</option>
                     <option value="medium">Medium</option>
@@ -267,7 +266,7 @@ export default function MailSandbox() {
                   <select
                     value={formData.is_phishing}
                     onChange={(e) => setFormData({ ...formData, is_phishing: e.target.value === 'true' })}
-                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-teal-500"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-950 bg-white"
                   >
                     <option value="true">Phishing / Malicious</option>
                     <option value="false">Safe / Legitimate</option>
@@ -283,7 +282,7 @@ export default function MailSandbox() {
                   placeholder="<p>Dear user, please click the link to confirm.</p>"
                   value={formData.body_html}
                   onChange={(e) => setFormData({ ...formData, body_html: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-teal-500 font-mono text-[11px]"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-950 font-mono text-[11px]"
                 />
               </div>
 
@@ -295,7 +294,7 @@ export default function MailSandbox() {
                   placeholder="Explanation of the red flags in this simulation..."
                   value={formData.clues}
                   onChange={(e) => setFormData({ ...formData, clues: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-teal-500"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-950"
                 />
               </div>
 
@@ -303,13 +302,13 @@ export default function MailSandbox() {
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg"
+                  className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-lg"
+                  className="flex-1 py-2 bg-blue-950 hover:bg-blue-900 text-white font-bold rounded-lg cursor-pointer shadow-md"
                 >
                   Save Scenario
                 </button>

@@ -44,7 +44,6 @@ export default function AdminDashboard() {
       setModules(modRes.data);
       setSimulations(simRes.data?.scenarios || simRes.data || []);
       
-      // Pull unread count from chat endpoint or admin metrics payload
       const unread = unreadRes.data?.unread_count ?? mRes.data?.unread_messages_count ?? 0;
       setUnreadChatCount(unread);
 
@@ -101,7 +100,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // Strictly filter learners only (excluding admins) and apply the search filter
   const filteredLearners = (metrics?.learners || []).filter((l) =>
     l.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
     l.email.toLowerCase().includes(searchTerm.toLowerCase())
@@ -115,19 +113,19 @@ export default function AdminDashboard() {
     <div className="min-h-full bg-slate-50 flex flex-col font-sans text-slate-900">
       
       {/* =========================================================================
-          TOP COMMAND BAR: Global Navigation & Master Control Link
+          TOP COMMAND BAR: MIDNIGHT BLUE
          ========================================================================= */}
-      <header className="bg-white border-b border-slate-200 px-6 sm:px-8 py-3.5 sticky top-0 z-30 shadow-2xs">
+      <header className="bg-blue-950 border-b border-blue-900 px-6 sm:px-8 py-3.5 sticky top-0 z-30 shadow-md">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black shadow-xs">
+            <div className="w-8 h-8 rounded-xl bg-blue-900 border border-blue-800 text-white flex items-center justify-center font-black shadow-xs">
               <ShieldCheck className="w-4 h-4 stroke-[2.5]" />
             </div>
             <div>
-              <span className="text-xs font-black text-slate-900 uppercase tracking-tight block">
+              <span className="text-xs font-black text-white uppercase tracking-tight block">
                 Governance Cockpit
               </span>
-              <span className="text-[10px] text-blue-600 font-bold uppercase tracking-wider block">
+              <span className="text-[10px] text-blue-300 font-bold uppercase tracking-wider block">
                 Icons Cyber Lab &middot; Executive Console
               </span>
             </div>
@@ -138,8 +136,8 @@ export default function AdminDashboard() {
               onClick={() => setActiveTab('overview')}
               className={`px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'overview' 
-                  ? 'bg-blue-600 text-white shadow-xs' 
-                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  ? 'bg-blue-900 text-white shadow-xs border border-blue-800' 
+                  : 'text-blue-200 hover:bg-blue-900 hover:text-white'
               }`}
             >
               <LayoutDashboard className="w-3.5 h-3.5" /> 
@@ -150,8 +148,8 @@ export default function AdminDashboard() {
               onClick={() => setActiveTab('learners')}
               className={`px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'learners' 
-                  ? 'bg-blue-600 text-white shadow-xs' 
-                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  ? 'bg-blue-900 text-white shadow-xs border border-blue-800' 
+                  : 'text-blue-200 hover:bg-blue-900 hover:text-white'
               }`}
             >
               <Users className="w-3.5 h-3.5" /> 
@@ -162,8 +160,8 @@ export default function AdminDashboard() {
               onClick={() => setActiveTab('modules')}
               className={`px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'modules' 
-                  ? 'bg-blue-600 text-white shadow-xs' 
-                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  ? 'bg-blue-900 text-white shadow-xs border border-blue-800' 
+                  : 'text-blue-200 hover:bg-blue-900 hover:text-white'
               }`}
             >
               <BookOpen className="w-3.5 h-3.5" /> 
@@ -174,8 +172,8 @@ export default function AdminDashboard() {
               onClick={() => setActiveTab('simulations')}
               className={`px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'simulations' 
-                  ? 'bg-blue-600 text-white shadow-xs' 
-                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  ? 'bg-blue-900 text-white shadow-xs border border-blue-800' 
+                  : 'text-blue-200 hover:bg-blue-900 hover:text-white'
               }`}
             >
               <Mail className="w-3.5 h-3.5" /> 
@@ -186,8 +184,8 @@ export default function AdminDashboard() {
               onClick={() => setActiveTab('certified')}
               className={`px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'certified' 
-                  ? 'bg-blue-600 text-white shadow-xs' 
-                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  ? 'bg-blue-900 text-white shadow-xs border border-blue-800' 
+                  : 'text-blue-200 hover:bg-blue-900 hover:text-white'
               }`}
             >
               <Award className="w-3.5 h-3.5" /> 
@@ -196,12 +194,12 @@ export default function AdminDashboard() {
 
             <Link
               to="/chat"
-              className="px-3 py-1.5 rounded-xl font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition flex items-center gap-1.5 relative"
+              className="px-3 py-1.5 rounded-xl font-bold bg-blue-900 border border-blue-800 text-blue-100 hover:bg-blue-800 transition flex items-center gap-1.5 relative"
             >
-              <MessageSquare className="w-3.5 h-3.5 text-blue-600" />
+              <MessageSquare className="w-3.5 h-3.5 text-blue-300" />
               <span>Triage Chat</span>
               {unreadChatCount > 0 && (
-                <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-black leading-none text-white bg-rose-600 rounded-full animate-bounce">
+                <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-black leading-none text-blue-950 bg-white rounded-full animate-bounce">
                   +{unreadChatCount}
                 </span>
               )}
@@ -209,9 +207,9 @@ export default function AdminDashboard() {
 
             <Link
               to="/admin/control-panel"
-              className="px-3 py-1.5 rounded-xl font-bold bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 transition flex items-center gap-1.5 shadow-2xs"
+              className="px-3 py-1.5 rounded-xl font-bold bg-blue-900 border border-blue-800 text-blue-100 hover:bg-blue-800 transition flex items-center gap-1.5 shadow-xs"
             >
-              <Sliders className="w-3.5 h-3.5 text-blue-600" />
+              <Sliders className="w-3.5 h-3.5 text-blue-300" />
               <span>Master Control Panel</span>
             </Link>
           </nav>
@@ -236,7 +234,7 @@ export default function AdminDashboard() {
                 <select
                   value={selectedLearnerId || (selectedLearner ? selectedLearner.id : '')}
                   onChange={(e) => setSelectedLearnerId(e.target.value)}
-                  className="w-full appearance-none bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition cursor-pointer pr-10"
+                  className="w-full appearance-none bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-950 focus:bg-white transition cursor-pointer pr-10"
                 >
                   {filteredLearners.length > 0 ? (
                     filteredLearners.map((l) => (
@@ -266,7 +264,7 @@ export default function AdminDashboard() {
               </div>
               <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-center">
                 <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Certified</span>
-                <span className="text-base font-black text-blue-600">
+                <span className="text-base font-black text-blue-950">
                   {metrics?.learners?.filter((l) => l.is_certified).length ?? 0}
                 </span>
               </div>
@@ -278,7 +276,7 @@ export default function AdminDashboard() {
           {selectedLearner && (
             <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200 text-blue-600 font-black flex items-center justify-center text-sm">
+                <div className="w-10 h-10 rounded-xl bg-blue-100/50 border border-blue-200 text-blue-950 font-black flex items-center justify-center text-sm">
                   {selectedLearner.username.substring(0, 2).toUpperCase()}
                 </div>
                 <div>
@@ -286,17 +284,17 @@ export default function AdminDashboard() {
                     <strong className="text-slate-900 font-bold">{selectedLearner.username}</strong>
                     <span className="text-[10px] text-slate-500 font-mono">({selectedLearner.email})</span>
                     {selectedLearner.is_certified ? (
-                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                      <span className="text-[10px] font-bold text-blue-950 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
                         Accredited
                       </span>
                     ) : (
-                      <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                      <span className="text-[10px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
                         Training
                       </span>
                     )}
                   </div>
                   <p className="text-slate-500 text-[11px] mt-0.5">
-                    Readiness: <strong className="text-blue-600 font-bold">{selectedLearner.readiness_score}%</strong> &middot; 
+                    Readiness: <strong className="text-blue-950 font-bold">{selectedLearner.readiness_score}%</strong> &middot; 
                     Completed {selectedLearner.completed_modules}/{selectedLearner.total_modules} Modules &middot; 
                     {selectedLearner.simulations_completed} Simulations Attempted
                   </p>
@@ -307,7 +305,7 @@ export default function AdminDashboard() {
               <button
                 onClick={() => handleResetLearnerReadiness(selectedLearner)}
                 disabled={resetting}
-                className="px-3.5 py-2 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-xs transition flex items-center gap-2 shrink-0 cursor-pointer shadow-2xs"
+                className="px-3.5 py-2 rounded-xl border border-blue-950/20 bg-blue-50 hover:bg-blue-100 text-blue-950 font-bold text-xs transition flex items-center gap-2 shrink-0 cursor-pointer shadow-xs"
               >
                 <RotateCcw className={`w-3.5 h-3.5 ${resetting ? 'animate-spin' : ''}`} />
                 <span>Reset Learner Readiness (0%)</span>
@@ -333,7 +331,7 @@ export default function AdminDashboard() {
             {/* Metrics Counters */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:border-blue-300 transition">
-                <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-3">
+                <div className="w-8 h-8 rounded-xl bg-blue-100/50 text-blue-950 flex items-center justify-center mb-3">
                   <Users className="w-4 h-4" />
                 </div>
                 <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">
@@ -346,7 +344,7 @@ export default function AdminDashboard() {
               </div>
 
               <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:border-blue-300 transition">
-                <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-3">
+                <div className="w-8 h-8 rounded-xl bg-blue-100/50 text-blue-950 flex items-center justify-center mb-3">
                   <BookOpen className="w-4 h-4" />
                 </div>
                 <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">
@@ -357,7 +355,7 @@ export default function AdminDashboard() {
               </div>
 
               <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:border-blue-300 transition">
-                <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-3">
+                <div className="w-8 h-8 rounded-xl bg-blue-100/50 text-blue-950 flex items-center justify-center mb-3">
                   <Mail className="w-4 h-4" />
                 </div>
                 <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">
@@ -368,13 +366,13 @@ export default function AdminDashboard() {
               </div>
 
               <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:border-blue-300 transition">
-                <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-3">
+                <div className="w-8 h-8 rounded-xl bg-blue-100/50 text-blue-950 flex items-center justify-center mb-3">
                   <Award className="w-4 h-4" />
                 </div>
                 <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">
                   Certified Graduates
                 </span>
-                <p className="text-2xl font-black text-blue-600 mt-1">
+                <p className="text-2xl font-black text-blue-950 mt-1">
                   {metrics?.learners?.filter((l) => l.is_certified).length || 0}
                 </p>
                 <span className="text-[10px] text-slate-400 block mt-1">100% finished &amp; passed</span>
@@ -383,7 +381,7 @@ export default function AdminDashboard() {
 
             {/* Educational Readiness Score Context & Explanation */}
             <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex items-start gap-3.5">
-              <div className="p-2.5 bg-blue-50 text-blue-600 border border-blue-200 rounded-xl shrink-0">
+              <div className="p-2.5 bg-blue-100/50 text-blue-950 border border-blue-200 rounded-xl shrink-0">
                 <Info className="w-5 h-5" />
               </div>
               <div className="space-y-1 text-xs">
@@ -403,7 +401,7 @@ export default function AdminDashboard() {
             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div className="flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-blue-600" />
+                  <Activity className="w-4 h-4 text-blue-950" />
                   <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
                     Live Security Operations Audit Trail
                   </h3>
@@ -453,7 +451,7 @@ export default function AdminDashboard() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search learner by username or email..."
-                className="w-full bg-white border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-blue-600 shadow-2xs"
+                className="w-full bg-white border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-blue-950 shadow-2xs"
               />
             </div>
 
@@ -461,7 +459,7 @@ export default function AdminDashboard() {
               <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-6">
                 <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-700 font-black text-base">
+                    <div className="w-12 h-12 rounded-xl bg-blue-100/50 border border-blue-200 flex items-center justify-center text-blue-950 font-black text-base">
                       {selectedLearner.username.substring(0, 2).toUpperCase()}
                     </div>
                     <div>
@@ -472,11 +470,11 @@ export default function AdminDashboard() {
 
                   <div className="flex items-center gap-2">
                     {selectedLearner.is_certified ? (
-                      <span className="bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1.5">
-                        <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> Icons Certified Graduate
+                      <span className="bg-blue-50 text-blue-950 border border-blue-200 text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1.5">
+                        <CheckCircle className="w-3.5 h-3.5 text-blue-950" /> Icons Certified Graduate
                       </span>
                     ) : (
-                      <span className="bg-amber-50 text-amber-800 border border-amber-200 text-xs font-semibold px-3 py-1 rounded-full">
+                      <span className="bg-slate-100 text-slate-700 border border-slate-200 text-xs font-semibold px-3 py-1 rounded-full">
                         Training In Progress
                       </span>
                     )}
@@ -484,7 +482,7 @@ export default function AdminDashboard() {
                     <button
                       onClick={() => handleResetLearnerReadiness(selectedLearner)}
                       disabled={resetting}
-                      className="px-3 py-1 rounded-full border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-xs transition flex items-center gap-1.5 cursor-pointer"
+                      className="px-3 py-1 rounded-full border border-blue-950/20 bg-blue-50 hover:bg-blue-100 text-blue-950 font-bold text-xs transition flex items-center gap-1.5 cursor-pointer"
                     >
                       <RotateCcw className={`w-3 h-3 ${resetting ? 'animate-spin' : ''}`} />
                       <span>Reset Score</span>
@@ -501,7 +499,7 @@ export default function AdminDashboard() {
                     </p>
                     <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden mt-2">
                       <div
-                        className="bg-blue-600 h-full rounded-full transition-all duration-500"
+                        className="bg-blue-950 h-full rounded-full transition-all duration-500"
                         style={{ width: `${selectedLearner.total_modules > 0 ? (selectedLearner.completed_modules / selectedLearner.total_modules) * 100 : 0}%` }}
                       />
                     </div>
@@ -512,15 +510,15 @@ export default function AdminDashboard() {
                       <span className="text-[10px] uppercase font-bold text-slate-400">Readiness Score</span>
                       <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded ${
                         selectedLearner.readiness_score >= 80 
-                          ? 'bg-emerald-100 text-emerald-800' 
+                          ? 'bg-blue-50 text-blue-950' 
                           : selectedLearner.readiness_score >= 50 
-                          ? 'bg-blue-100 text-blue-800' 
-                          : 'bg-amber-100 text-amber-800'
+                          ? 'bg-slate-100 text-slate-700' 
+                          : 'bg-rose-50 text-rose-800'
                       }`}>
                         {selectedLearner.readiness_score >= 80 ? 'High' : selectedLearner.readiness_score >= 50 ? 'Moderate' : 'Low'}
                       </span>
                     </div>
-                    <p className="text-xl font-black text-blue-600">{selectedLearner.readiness_score}%</p>
+                    <p className="text-xl font-black text-blue-950">{selectedLearner.readiness_score}%</p>
                     <p className="text-[10px] text-slate-500">
                       Curriculum progress &plus; simulation accuracy index.
                     </p>
@@ -540,7 +538,7 @@ export default function AdminDashboard() {
                   </span>
                   <Link
                     to="/chat"
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-xl transition shadow-xs shrink-0"
+                    className="bg-blue-950 hover:bg-blue-900 text-white font-bold px-4 py-2 rounded-xl transition shadow-xs shrink-0"
                   >
                     Open Triage Thread
                   </Link>
@@ -575,7 +573,7 @@ export default function AdminDashboard() {
                 <div key={mod.id} className="bg-white border border-slate-200 p-5 rounded-2xl shadow-xs flex flex-col justify-between hover:border-blue-300 transition">
                   <div>
                     <div className="flex justify-between items-center mb-2">
-                      <span className="text-[10px] font-bold uppercase text-blue-700 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded">
+                      <span className="text-[10px] font-bold uppercase text-blue-950 bg-blue-100/50 border border-blue-200 px-2 py-0.5 rounded">
                         Module {mod.module_number}
                       </span>
                       <button
@@ -609,7 +607,7 @@ export default function AdminDashboard() {
                   Inspect the 10 sandbox phishing and legitimate email payloads configured for learners.
                 </p>
               </div>
-              <Link to="/simulation" className="bg-blue-600 text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-blue-700 transition shadow-xs">
+              <Link to="/simulation" className="bg-blue-950 text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-blue-900 transition shadow-xs">
                 Launch Mailbox Sandbox
               </Link>
             </div>
@@ -620,8 +618,8 @@ export default function AdminDashboard() {
                   <div className="flex items-center gap-2">
                     <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase border ${
                       sim.is_phishing 
-                        ? 'bg-red-50 text-red-700 border-red-200' 
-                        : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        ? 'bg-rose-50 text-rose-700 border-rose-200' 
+                        : 'bg-blue-50 text-blue-800 border-blue-200'
                     }`}>
                       {sim.is_phishing ? 'Phishing' : 'Legitimate'}
                     </span>
@@ -661,12 +659,12 @@ export default function AdminDashboard() {
               {metrics?.learners?.filter((l) => l.is_certified).length > 0 ? (
                 <div className="space-y-3">
                   {metrics.learners.filter((l) => l.is_certified).map((c) => (
-                    <div key={c.id} className="p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-xl flex justify-between items-center text-xs">
+                    <div key={c.id} className="p-3.5 bg-blue-50/70 border border-blue-200 rounded-xl flex justify-between items-center text-xs">
                       <div>
-                        <p className="font-bold text-emerald-950">{c.username} ({c.email})</p>
-                        <p className="text-[10px] text-emerald-700 mt-0.5">100% Curriculum Completed &amp; Verified</p>
+                        <p className="font-bold text-blue-950">{c.username} ({c.email})</p>
+                        <p className="text-[10px] text-blue-800 mt-0.5">100% Curriculum Completed &amp; Verified</p>
                       </div>
-                      <span className="text-[10px] font-bold text-emerald-800 bg-white px-3 py-1 rounded-lg border border-emerald-300 shadow-2xs">
+                      <span className="text-[10px] font-bold text-blue-950 bg-white px-3 py-1 rounded-lg border border-blue-300 shadow-2xs">
                         Icons Accredited
                       </span>
                     </div>

@@ -8,11 +8,13 @@ export default function Assessment() {
   const [result, setResult] = useState(null);
   const [userName, setUserName] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     axios.get('http://127.0.0.1:8000/api/simulation/quiz/questions/')
       .then(res => setQuestions(res.data))
-      .catch(err => console.error("Error loading quiz questions", err));
+      .catch(err => console.error("Error loading quiz questions", err))
+      .finally(() => setLoading(false));
   }, []);
 
   const handleSelect = (questionId, optionKey) => {
@@ -43,80 +45,99 @@ export default function Assessment() {
     window.open(`http://127.0.0.1:8000/api/simulation/certificate/download/?name=${encodeURIComponent(name)}`, '_blank');
   };
 
+  // Safe parser to prevent crashes if backend returns options as a JSON string
+  const parseOptions = (optionsData) => {
+    if (!optionsData) return {};
+    if (typeof optionsData === 'object') return optionsData;
+    try {
+      return JSON.parse(optionsData);
+    } catch (e) {
+      return {};
+    }
+  };
+
+  if (loading) {
+    return <div className="p-8 text-center text-slate-500 font-bold text-sm">Loading assessment questions...</div>;
+  }
+
   return (
     <div className="max-w-4xl mx-auto p-8">
-      <div className="mb-8 border-b border-slate-700/60 pb-4">
-        <h2 className="text-3xl font-extrabold text-white mb-1">Cybersecurity Certification Assessment</h2>
-        <p className="text-slate-400 text-sm">Pass with 75% or higher to earn an official verified certificate of training completion.</p>
+      <div className="mb-8 border-b border-slate-200 pb-4">
+        <h2 className="text-3xl font-extrabold text-slate-900 mb-1">Cybersecurity Certification Assessment</h2>
+        <p className="text-slate-500 text-sm">Pass with 75% or higher to earn an official verified certificate of training completion.</p>
       </div>
 
       {!result ? (
         <form onSubmit={handleSubmit} className="space-y-6">
-          {questions.map((q, idx) => (
-            <div key={q.id} className="bg-[#1E293B] border border-slate-700 p-6 rounded-xl">
-              <h3 className="text-base font-semibold text-white mb-4 flex items-start gap-2">
-                <span className="text-sky-400 font-bold">Q{idx + 1}.</span> {q.question}
-              </h3>
+          {questions.map((q, idx) => {
+            const parsedOptions = parseOptions(q.options);
+            
+            return (
+              <div key={q.id} className="bg-white border border-slate-200 p-6 rounded-2xl shadow-xs">
+                <h3 className="text-base font-semibold text-slate-900 mb-4 flex items-start gap-2">
+                  <span className="text-blue-950 font-black">Q{idx + 1}.</span> {q.question}
+                </h3>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {Object.entries(q.options).map(([key, val]) => {
-                  const isSelected = answers[q.id] === key;
-                  return (
-                    <button
-                      type="button"
-                      key={key}
-                      onClick={() => handleSelect(q.id, key)}
-                      className={`text-left p-3 rounded-lg border text-xs transition flex items-center gap-3 ${
-                        isSelected
-                          ? 'bg-sky-500/20 border-sky-400 text-white font-medium'
-                          : 'bg-slate-900/60 border-slate-700 text-slate-300 hover:bg-slate-800'
-                      }`}
-                    >
-                      <span className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-[11px] shrink-0 ${
-                        isSelected ? 'bg-sky-500 text-slate-950' : 'bg-slate-800 text-slate-400'
-                      }`}>
-                        {key}
-                      </span>
-                      <span>{val}</span>
-                    </button>
-                  );
-                })}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {Object.entries(parsedOptions).map(([key, val]) => {
+                    const isSelected = answers[q.id] === key;
+                    return (
+                      <button
+                        type="button"
+                        key={key}
+                        onClick={() => handleSelect(q.id, key)}
+                        className={`text-left p-3 rounded-xl border text-xs transition flex items-center gap-3 cursor-pointer ${
+                          isSelected
+                            ? 'bg-blue-50 border-blue-950 text-blue-950 font-bold shadow-xs'
+                            : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                        }`}
+                      >
+                        <span className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-[11px] shrink-0 transition-colors ${
+                          isSelected ? 'bg-blue-950 text-white' : 'bg-slate-200 text-slate-500'
+                        }`}>
+                          {key}
+                        </span>
+                        <span>{val}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
 
           <button
             type="submit"
-            disabled={submitting}
-            className="w-full py-3 bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold rounded-xl transition shadow-lg flex items-center justify-center gap-2 text-sm"
+            disabled={submitting || questions.length === 0}
+            className="w-full py-3.5 bg-blue-950 hover:bg-blue-900 text-white font-bold rounded-xl transition shadow-md flex items-center justify-center gap-2 text-sm cursor-pointer disabled:opacity-50"
           >
-            <ShieldCheck className="w-5 h-5" /> Submit Assessment for Grading
+            <ShieldCheck className="w-5 h-5" /> {submitting ? 'Evaluating...' : 'Submit Assessment for Grading'}
           </button>
         </form>
       ) : (
-        <div className="space-y-6">
-          <div className={`p-6 rounded-xl border text-center ${result.passed ? 'bg-emerald-950/20 border-emerald-500/40' : 'bg-red-950/20 border-red-500/40'}`}>
-            <Award className={`w-16 h-16 mx-auto mb-3 ${result.passed ? 'text-emerald-400' : 'text-red-400'}`} />
-            <h3 className="text-2xl font-bold text-white mb-1">
+        <div className="space-y-6 animate-in fade-in zoom-in duration-300">
+          <div className={`p-8 rounded-2xl border text-center shadow-sm ${result.passed ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'}`}>
+            <Award className={`w-20 h-20 mx-auto mb-4 ${result.passed ? 'text-emerald-600' : 'text-rose-600'}`} />
+            <h3 className={`text-3xl font-black mb-2 ${result.passed ? 'text-emerald-900' : 'text-rose-900'}`}>
               {result.passed ? "Assessment Passed!" : "Assessment Threshold Not Met"}
             </h3>
-            <p className="text-slate-300 text-sm mb-4">
-              Your Score: <span className="font-bold text-white">{result.score} / {result.total}</span> ({result.percentage}%)
+            <p className="text-slate-600 text-sm mb-6">
+              Your Score: <span className="font-bold text-slate-900">{result.score} / {result.total}</span> ({result.percentage}%)
             </p>
 
             {result.passed ? (
-              <div className="max-w-md mx-auto bg-slate-900/80 border border-slate-700 p-4 rounded-xl mt-4">
-                <label className="block text-xs font-semibold text-slate-300 mb-2">Enter your full name for the certificate:</label>
+              <div className="max-w-md mx-auto bg-white border border-slate-200 p-6 rounded-xl mt-4 shadow-xs">
+                <label className="block text-xs font-bold text-slate-700 mb-2">Enter your full name for the certificate:</label>
                 <input
                   type="text"
                   placeholder="e.g. Ndaba Joel Osteen"
                   value={userName}
                   onChange={(e) => setUserName(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white focus:outline-none focus:border-sky-400 mb-3"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:border-blue-950 mb-4 font-semibold"
                 />
                 <button
                   onClick={handleDownloadCert}
-                  className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-lg text-xs transition flex items-center justify-center gap-2"
+                  className="w-full py-3 bg-blue-950 hover:bg-blue-900 text-white font-bold rounded-xl text-xs transition flex items-center justify-center gap-2 cursor-pointer shadow-md"
                 >
                   <Download className="w-4 h-4" /> Download Official PDF Certificate
                 </button>
@@ -124,7 +145,7 @@ export default function Assessment() {
             ) : (
               <button
                 onClick={() => { setResult(null); setAnswers({}); }}
-                className="mt-2 px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-lg text-xs transition inline-flex items-center gap-2 border border-slate-600"
+                className="mt-2 px-8 py-3 bg-blue-950 hover:bg-blue-900 text-white font-bold rounded-xl text-xs transition inline-flex items-center gap-2 shadow-md cursor-pointer"
               >
                 <RotateCcw className="w-4 h-4" /> Retake Assessment
               </button>

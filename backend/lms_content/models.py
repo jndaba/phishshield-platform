@@ -1,25 +1,34 @@
 from django.db import models
 from django.contrib.auth.models import User
 
-
 class LearningModule(models.Model):
+    # Legacy fields (preserved for backward compatibility)
     title = models.CharField(max_length=255)
-    description = models.TextField()
-    category = models.CharField(max_length=100, default="Phishing Fundamentals")
+    description = models.TextField(blank=True, default="")
+    category = models.CharField(max_length=100, default="Cyber Defense")
     duration_minutes = models.IntegerField(default=15)
     content_body = models.TextField(blank=True, default="")
     order = models.IntegerField(default=1)
+    
+    # New fields for 20-module rich curriculum
+    module_number = models.IntegerField(default=1)
+    video_url = models.URLField(blank=True, null=True)
+    rich_content = models.TextField(blank=True, null=True)
+    document = models.FileField(upload_to='modules/documents/', blank=True, null=True)
+    estimated_read_time = models.CharField(max_length=50, default="10 mins")
+    
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.order}. {self.title}"
+        return f"Module {self.module_number}: {self.title}"
 
 
 class UserProgress(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="lms_progress")
     module = models.ForeignKey(LearningModule, on_delete=models.CASCADE, related_name="learner_records")
     completed = models.BooleanField(default=False)
-    completion_date = models.DateTimeField(null=True, blank=True)
+    completion_date = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     score = models.IntegerField(default=0)
 
     class Meta:

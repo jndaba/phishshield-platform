@@ -16,7 +16,7 @@ urlpatterns = [
     path('inbox/', SimulationInboxListView.as_view(), name='simulation_inbox_list'),
     path('inbox/<int:scenario_id>/verdict/', SubmitScenarioDecisionView.as_view(), name='simulation_scenario_verdict'),
 
-    # Simulation Emails & Attempts
+    # Admin Simulation Emails & Attempts (CRUD)
     path('emails/', SimulationEmailListCreateView.as_view(), name='simulation_emails'),
     path('emails/<int:pk>/', SimulationEmailDetailView.as_view(), name='simulation_email_detail'),
     path('emails/<int:email_id>/attempt/', RecordSimulationAttemptView.as_view(), name='simulation_attempt'),

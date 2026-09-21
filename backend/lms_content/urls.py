@@ -17,5 +17,5 @@ urlpatterns = [
 
     # Incident Recovery Guides (Learner & Admin Access)
     path('incident-guides/', IncidentGuideListCreateView.as_view(), name='incident_guides_list_create'),
-    path('incident-guides/<int:guide_id>/', IncidentGuideDetailView.as_view(), name='incident_guide_detail'),
+    path('incident-guides/<int:pk>/', IncidentGuideDetailView.as_view(), name='incident_guide_detail'),
 ]
