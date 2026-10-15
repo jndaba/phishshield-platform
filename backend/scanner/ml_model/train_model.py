@@ -1,5 +1,8 @@
 import os
+import re
 import time
+import json
+from datetime import datetime
 
 import joblib
 import pandas as pd
@@ -22,680 +25,722 @@ from feature_extraction import (
 
 
 # ============================================================
-# PATHS
+# PATHS AND CONFIGURATION
 # ============================================================
 
-CURRENT_DIR = os.path.dirname(
-    os.path.abspath(__file__)
-)
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 DATASET_PATH = os.path.join(
     CURRENT_DIR,
     "dataset",
-    "phishing_site_urls.csv"
+    "phishing_site_urls.csv",
 )
 
 MODEL_DIR = os.path.join(
     CURRENT_DIR,
-    "models"
+    "models",
 )
 
 MODEL_PATH = os.path.join(
     MODEL_DIR,
-    "phishing_url_model.pkl"
+    "phishing_url_model.pkl",
 )
 
-
-# ============================================================
-# START
-# ============================================================
-
-print("=" * 70)
-print("PHISHSHIELD RANDOM FOREST MODEL TRAINING")
-print("=" * 70)
-
-start_time = time.time()
-
-
-# ============================================================
-# CREATE MODEL DIRECTORY
-# ============================================================
-
-os.makedirs(
+TEMP_MODEL_PATH = os.path.join(
     MODEL_DIR,
-    exist_ok=True
+    "phishing_url_model_temp.pkl",
 )
 
-
-# ============================================================
-# LOAD DATASET
-# ============================================================
-
-print("\nLoading dataset...")
-
-df = pd.read_csv(
-    DATASET_PATH
+REPORT_PATH = os.path.join(
+    MODEL_DIR,
+    "training_report.json",
 )
 
-print("Dataset loaded successfully.")
+TEST_SIZE = 0.20
+RANDOM_STATE = 42
+NUMBER_OF_TREES = 200
 
-print(
-    f"Original number of rows: {len(df):,}"
-)
+# Must match PHISHING_THRESHOLD in predict.py.
+PHISHING_THRESHOLD = 0.50
 
-print(
-    f"Columns: {df.columns.tolist()}"
-)
+EXPECTED_FEATURE_COUNT = 34
 
-
-# ============================================================
-# CHECK REQUIRED COLUMNS
-# ============================================================
-
-required_columns = [
-    "URL",
-    "Label"
+THRESHOLDS_TO_COMPARE = [
+    0.30,
+    0.35,
+    0.40,
+    0.45,
+    0.50,
+    0.55,
+    0.60,
 ]
 
-for column in required_columns:
 
-    if column not in df.columns:
+# ============================================================
+# URL NORMALIZATION
+# ============================================================
 
-        raise ValueError(
-            f"Required column '{column}' "
-            f"was not found in the dataset."
+def normalize_url_for_features(value):
+    """
+    Remove the URL scheme and leading // when present.
+
+    The feature extractor performs its own normalization,
+    including canonicalizing a leading www. hostname prefix.
+    """
+
+    url = str(value).strip()
+
+    url = re.sub(
+        r"^[a-zA-Z][a-zA-Z0-9+.-]*://",
+        "",
+        url,
+        count=1,
+    )
+
+    if url.startswith("//"):
+        url = url[2:]
+
+    return url
+
+
+# ============================================================
+# DATA VALIDATION
+# ============================================================
+
+def is_usable_url(value):
+    """Reject empty, excessively long, or corrupted URL rows."""
+
+    if not isinstance(value, str):
+        return False
+
+    url = value.strip()
+
+    if not url or len(url) > 2048:
+        return False
+
+    if any(
+        ord(character) < 32 or ord(character) == 127
+        for character in url
+    ):
+        return False
+
+    non_ascii_count = sum(
+        ord(character) > 126
+        for character in url
+    )
+
+    if non_ascii_count / max(len(url), 1) > 0.10:
+        return False
+
+    return bool(normalize_url_for_features(url))
+
+
+# ============================================================
+# LOAD AND CLEAN DATASET
+# ============================================================
+
+def load_and_clean_dataset():
+
+    print("\nLoading dataset...")
+
+    if not os.path.isfile(DATASET_PATH):
+        raise FileNotFoundError(
+            f"Dataset not found:\n{DATASET_PATH}"
         )
 
+    df = pd.read_csv(DATASET_PATH)
 
-# ============================================================
-# CLEAN DATA
-# ============================================================
+    print(f"Original rows: {len(df):,}")
+    print(f"Dataset columns: {df.columns.tolist()}")
 
-print("\nCleaning dataset...")
+    required_columns = {"URL", "Label"}
 
-df["URL"] = (
-    df["URL"]
-    .astype(str)
-    .str.strip()
-)
+    if not required_columns.issubset(df.columns):
+        raise ValueError(
+            "The dataset must contain URL and Label columns."
+        )
 
-df["Label"] = (
-    df["Label"]
-    .astype(str)
-    .str.strip()
-    .str.lower()
-)
+    df = df[["URL", "Label"]].copy()
 
+    original_count = len(df)
 
-# ============================================================
-# REMOVE EMPTY URLs
-# ============================================================
+    df = df.dropna(
+        subset=["URL", "Label"]
+    ).copy()
 
-before_empty_removal = len(df)
-
-df = df[
-    df["URL"].str.len() > 0
-]
-
-removed_empty = (
-    before_empty_removal - len(df)
-)
-
-print(
-    f"Empty URLs removed: {removed_empty:,}"
-)
-
-
-# ============================================================
-# KEEP ONLY EXPECTED LABELS
-# ============================================================
-
-df = df[
-    df["Label"].isin(
-        ["good", "bad"]
+    print(
+        "Rows removed due to missing values: "
+        f"{original_count - len(df):,}"
     )
-]
 
-print("\nLabels found:")
+    df["URL"] = df["URL"].astype(str).str.strip()
 
-print(
-    df["Label"].value_counts()
-)
+    df["Label"] = (
+        df["Label"]
+        .astype(str)
+        .str.strip()
+        .str.lower()
+    )
 
+    # good = legitimate; bad = phishing.
+    df = df[df["Label"].isin(["good", "bad"])].copy()
 
-# ============================================================
-# REMOVE DUPLICATE URLs
-# ============================================================
+    before_url_cleaning = len(df)
 
-before_duplicates = len(df)
+    df = df[df["URL"].apply(is_usable_url)].copy()
 
-df = df.drop_duplicates(
-    subset=["URL"]
-)
+    print(
+        "Unusable URLs removed: "
+        f"{before_url_cleaning - len(df):,}"
+    )
 
-duplicates_removed = (
-    before_duplicates - len(df)
-)
+    if df.empty:
+        raise ValueError(
+            "No usable URLs remain after cleaning."
+        )
 
-print(
-    f"\nDuplicate URLs removed: "
-    f"{duplicates_removed:,}"
-)
+    # Remove URLs whose exact string has conflicting labels.
+    label_counts = df.groupby("URL")["Label"].nunique()
 
-print(
-    f"Remaining URLs: {len(df):,}"
-)
+    conflicting_urls = label_counts[
+        label_counts > 1
+    ].index
 
+    print(
+        "URLs with conflicting labels: "
+        f"{len(conflicting_urls):,}"
+    )
 
-# ============================================================
-# CONVERT LABELS
-#
-# good = 0 = legitimate
-# bad  = 1 = phishing
-# ============================================================
+    if len(conflicting_urls) > 0:
+        df = df[
+            ~df["URL"].isin(conflicting_urls)
+        ].copy()
 
-df["Label"] = df["Label"].map(
-    {
+    before_deduplication = len(df)
+
+    df = df.drop_duplicates(subset=["URL"]).copy()
+
+    print(
+        "Duplicate rows removed: "
+        f"{before_deduplication - len(df):,}"
+    )
+
+    df["target"] = df["Label"].map({
         "good": 0,
         "bad": 1,
-    }
-)
+    })
 
-
-print("\nFinal label distribution:")
-
-print(
-    df["Label"]
-    .value_counts()
-    .sort_index()
-)
-
-
-# ============================================================
-# EXTRACT FEATURES
-# ============================================================
-
-print("\n" + "=" * 70)
-print("EXTRACTING URL FEATURES")
-print("=" * 70)
-
-feature_start_time = time.time()
-
-feature_matrix = []
-
-total_urls = len(df)
-
-for index, url in enumerate(
-    df["URL"],
-    start=1
-):
-
-    features = extract_features(
-        url
+    df["feature_url"] = df["URL"].apply(
+        normalize_url_for_features
     )
 
-    feature_matrix.append(
-        features
-    )
-
-    # Show progress every 50,000 URLs
-    if index % 50000 == 0:
-
-        print(
-            f"Processed "
-            f"{index:,} / "
-            f"{total_urls:,} URLs"
+    if df["target"].nunique() != 2:
+        raise ValueError(
+            "Both legitimate and phishing examples are required."
         )
 
+    print(f"\nCleaned dataset rows: {len(df):,}")
 
-feature_names = get_feature_names()
+    print("\nLabel distribution:")
 
-
-# ============================================================
-# VERIFY FEATURE COUNT
-# ============================================================
-
-if len(feature_matrix) == 0:
-
-    raise ValueError(
-        "No features were extracted."
+    print(
+        df["target"]
+        .value_counts()
+        .sort_index()
+        .rename(index={
+            0: "Legitimate (0)",
+            1: "Phishing (1)",
+        })
+        .to_string()
     )
 
-
-actual_feature_count = len(
-    feature_matrix[0]
-)
-
-expected_feature_count = len(
-    feature_names
-)
+    return df.reset_index(drop=True)
 
 
-print(
-    f"\nNumber of features extracted: "
-    f"{actual_feature_count}"
-)
+# ============================================================
+# FEATURE EXTRACTION
+# ============================================================
 
-print(
-    f"Number of feature names: "
-    f"{expected_feature_count}"
-)
+def build_feature_matrix(df, feature_names):
 
+    print("\n" + "=" * 70)
+    print("EXTRACTING URL FEATURES")
+    print("=" * 70)
 
-if actual_feature_count != expected_feature_count:
+    start_time = time.time()
 
-    raise ValueError(
-        "Feature count mismatch! "
-        "extract_features() and "
-        "get_feature_names() must "
-        "return the same number of features."
+    feature_matrix = []
+    total_urls = len(df)
+
+    for index, url in enumerate(
+        df["feature_url"],
+        start=1,
+    ):
+
+        features = extract_features(url)
+
+        if len(features) != len(feature_names):
+            raise ValueError(
+                f"Feature mismatch at row {index}: "
+                f"expected {len(feature_names)}, "
+                f"received {len(features)}."
+            )
+
+        feature_matrix.append(features)
+
+        if index % 50000 == 0:
+            print(
+                f"Processed {index:,} / "
+                f"{total_urls:,} URLs"
+            )
+
+    X = pd.DataFrame(
+        feature_matrix,
+        columns=feature_names,
     )
 
+    y = df["target"].reset_index(drop=True)
 
-# ============================================================
-# CREATE FEATURE DATAFRAME
-# ============================================================
+    if X.empty:
+        raise ValueError(
+            "Feature extraction returned no data."
+        )
 
-X = pd.DataFrame(
-    feature_matrix,
-    columns=feature_names
-)
+    if X.isnull().any().any():
+        raise ValueError(
+            "Missing values detected in the feature matrix."
+        )
 
-y = df["Label"]
+    if not all(
+        pd.api.types.is_numeric_dtype(dtype)
+        for dtype in X.dtypes
+    ):
+        raise ValueError(
+            "All extracted features must be numeric."
+        )
 
+    print(f"\nFeature matrix shape: {X.shape}")
+    print(f"Target vector shape: {y.shape}")
+    print(f"Number of features: {len(feature_names)}")
 
-print(
-    f"\nFeature matrix shape: "
-    f"{X.shape}"
-)
-
-print(
-    f"Target vector shape: "
-    f"{y.shape}"
-)
-
-
-# ============================================================
-# CHECK FOR MISSING VALUES
-# ============================================================
-
-missing_values = (
-    X.isnull().sum().sum()
-)
-
-print(
-    f"\nMissing feature values: "
-    f"{missing_values}"
-)
-
-
-if missing_values > 0:
-
-    raise ValueError(
-        "Missing values detected "
-        "in feature matrix."
+    print(
+        f"Feature extraction time: "
+        f"{time.time() - start_time:.2f} seconds"
     )
 
-
-feature_time = (
-    time.time()
-    - feature_start_time
-)
-
-print(
-    f"\nFeature extraction time: "
-    f"{feature_time:.2f} seconds"
-)
+    return X, y
 
 
 # ============================================================
-# TRAIN / TEST SPLIT
+# MODEL EVALUATION
 # ============================================================
 
-print("\n" + "=" * 70)
-print("CREATING TRAINING AND TEST SETS")
-print("=" * 70)
+def evaluate_model(model, X_test, y_test):
 
-X_train, X_test, y_train, y_test = train_test_split(
+    print("\nGenerating phishing probabilities...")
 
-    X,
+    probabilities = model.predict_proba(X_test)
 
-    y,
+    classes = list(model.classes_)
 
-    test_size=0.20,
+    if 1 not in classes:
+        raise ValueError(
+            "The trained model does not contain phishing class 1."
+        )
 
-    random_state=42,
+    phishing_index = classes.index(1)
 
-    stratify=y,
-)
+    phishing_probabilities = probabilities[:, phishing_index]
 
+    # Main metrics use the same threshold as predict.py.
+    y_pred = (
+        phishing_probabilities >= PHISHING_THRESHOLD
+    ).astype(int)
 
-print(
-    f"Training samples: "
-    f"{len(X_train):,}"
-)
+    accuracy = accuracy_score(y_test, y_pred)
 
-print(
-    f"Testing samples: "
-    f"{len(X_test):,}"
-)
-
-
-# ============================================================
-# RANDOM FOREST
-# ============================================================
-
-print("\n" + "=" * 70)
-print("TRAINING RANDOM FOREST")
-print("=" * 70)
-
-print("\nModel configuration:")
-
-print("Algorithm: Random Forest")
-
-print("Number of trees: 200")
-
-print("Class weight: None")
-
-print("Random state: 42")
-
-print("Parallel processing: enabled")
-
-
-# ============================================================
-# RANDOM FOREST MODEL
-#
-# NOTE:
-# class_weight="balanced" has intentionally been removed.
-#
-# We are testing whether the previous balanced weighting
-# contributed to the high false-positive rate.
-# ============================================================
-
-model = RandomForestClassifier(
-
-    n_estimators=200,
-
-    max_depth=None,
-
-    random_state=42,
-
-    n_jobs=-1,
-
-)
-
-
-# ============================================================
-# TRAIN MODEL
-# ============================================================
-
-training_start_time = time.time()
-
-print("\nTraining model...")
-
-model.fit(
-    X_train,
-    y_train
-)
-
-training_time = (
-    time.time()
-    - training_start_time
-)
-
-print(
-    f"\nTraining completed in "
-    f"{training_time:.2f} seconds."
-)
-
-
-# ============================================================
-# MAKE PREDICTIONS
-# ============================================================
-
-print("\nGenerating predictions...")
-
-y_pred = model.predict(
-    X_test
-)
-
-
-# ============================================================
-# MODEL METRICS
-# ============================================================
-
-accuracy = accuracy_score(
-    y_test,
-    y_pred
-)
-
-precision = precision_score(
-    y_test,
-    y_pred,
-    zero_division=0
-)
-
-recall = recall_score(
-    y_test,
-    y_pred,
-    zero_division=0
-)
-
-f1 = f1_score(
-    y_test,
-    y_pred,
-    zero_division=0
-)
-
-
-# ============================================================
-# DISPLAY METRICS
-# ============================================================
-
-print("\n" + "=" * 70)
-print("MODEL PERFORMANCE")
-print("=" * 70)
-
-print(
-    f"\nAccuracy : {accuracy:.4f}"
-)
-
-print(
-    f"Precision: {precision:.4f}"
-)
-
-print(
-    f"Recall   : {recall:.4f}"
-)
-
-print(
-    f"F1 Score : {f1:.4f}"
-)
-
-
-# ============================================================
-# CLASSIFICATION REPORT
-# ============================================================
-
-print("\n" + "=" * 70)
-print("CLASSIFICATION REPORT")
-print("=" * 70)
-
-print(
-    classification_report(
-
+    precision = precision_score(
         y_test,
-
         y_pred,
-
-        target_names=[
-            "Legitimate",
-            "Phishing",
-        ],
-
         zero_division=0,
-
     )
-)
 
+    recall = recall_score(
+        y_test,
+        y_pred,
+        zero_division=0,
+    )
 
-# ============================================================
-# CONFUSION MATRIX
-# ============================================================
+    f1 = f1_score(
+        y_test,
+        y_pred,
+        zero_division=0,
+    )
 
-print("\n" + "=" * 70)
-print("CONFUSION MATRIX")
-print("=" * 70)
+    cm = confusion_matrix(
+        y_test,
+        y_pred,
+        labels=[0, 1],
+    )
 
-cm = confusion_matrix(
-    y_test,
-    y_pred
-)
+    tn, fp, fn, tp = cm.ravel()
 
-print(
-    "\nRows = Actual"
-)
+    false_positive_rate = (
+        fp / (tn + fp)
+        if (tn + fp) > 0
+        else 0.0
+    )
 
-print(
-    "Columns = Predicted"
-)
+    print("\n" + "=" * 70)
+    print(
+        f"MODEL PERFORMANCE "
+        f"(THRESHOLD = {PHISHING_THRESHOLD:.2f})"
+    )
+    print("=" * 70)
 
-print()
+    print(f"\nAccuracy : {accuracy:.4f}")
+    print(f"Precision: {precision:.4f}")
+    print(f"Recall   : {recall:.4f}")
+    print(f"F1 Score : {f1:.4f}")
 
-print(
-    "                 Predicted"
-)
+    print("\nConfusion matrix")
+    print("Rows = Actual; Columns = Predicted")
+    print("                 Legitimate  Phishing")
+    print(f"Actual Legitimate {tn:11,d} {fp:9,d}")
+    print(f"Actual Phishing   {fn:11,d} {tp:9,d}")
 
-print(
-    "                 Legitimate  Phishing"
-)
+    print("\nClassification report:")
 
-print(
-    f"Actual Legitimate   "
-    f"{cm[0][0]:8d}  "
-    f"{cm[0][1]:8d}"
-)
+    print(
+        classification_report(
+            y_test,
+            y_pred,
+            labels=[0, 1],
+            target_names=["Legitimate", "Phishing"],
+            zero_division=0,
+        )
+    )
 
-print(
-    f"Actual Phishing     "
-    f"{cm[1][0]:8d}  "
-    f"{cm[1][1]:8d}"
-)
+    print(
+        f"False positive rate: {false_positive_rate:.4f}"
+    )
+
+    # Compare thresholds on the same held-out test set.
+    print("\nThreshold comparison:")
+
+    print(
+        f"{'Threshold':<12}"
+        f"{'Precision':<12}"
+        f"{'Recall':<12}"
+        f"{'F1 Score':<12}"
+        f"{'False Pos.':<12}"
+        f"{'False Neg.':<12}"
+    )
+
+    threshold_results = {}
+
+    for threshold in THRESHOLDS_TO_COMPARE:
+
+        threshold_pred = (
+            phishing_probabilities >= threshold
+        ).astype(int)
+
+        threshold_cm = confusion_matrix(
+            y_test,
+            threshold_pred,
+            labels=[0, 1],
+        )
+
+        threshold_tn, threshold_fp, threshold_fn, threshold_tp = (
+            threshold_cm.ravel()
+        )
+
+        threshold_precision = precision_score(
+            y_test,
+            threshold_pred,
+            zero_division=0,
+        )
+
+        threshold_recall = recall_score(
+            y_test,
+            threshold_pred,
+            zero_division=0,
+        )
+
+        threshold_f1 = f1_score(
+            y_test,
+            threshold_pred,
+            zero_division=0,
+        )
+
+        print(
+            f"{threshold:<12.2f}"
+            f"{threshold_precision:<12.4f}"
+            f"{threshold_recall:<12.4f}"
+            f"{threshold_f1:<12.4f}"
+            f"{threshold_fp:<12,d}"
+            f"{threshold_fn:<12,d}"
+        )
+
+        threshold_results[str(threshold)] = {
+            "precision": float(threshold_precision),
+            "recall": float(threshold_recall),
+            "f1": float(threshold_f1),
+            "true_negatives": int(threshold_tn),
+            "false_positives": int(threshold_fp),
+            "false_negatives": int(threshold_fn),
+            "true_positives": int(threshold_tp),
+        }
+
+    return {
+        "threshold": PHISHING_THRESHOLD,
+        "accuracy": float(accuracy),
+        "precision": float(precision),
+        "recall": float(recall),
+        "f1": float(f1),
+        "true_negatives": int(tn),
+        "false_positives": int(fp),
+        "false_negatives": int(fn),
+        "true_positives": int(tp),
+        "false_positive_rate": float(false_positive_rate),
+        "threshold_comparison": threshold_results,
+    }
 
 
 # ============================================================
 # FEATURE IMPORTANCE
 # ============================================================
 
-print("\n" + "=" * 70)
-print("FEATURE IMPORTANCE")
-print("=" * 70)
+def display_feature_importance(model, feature_names):
 
-feature_importance = pd.DataFrame({
+    print("\n" + "=" * 70)
+    print("FEATURE IMPORTANCE")
+    print("=" * 70)
 
-    "feature": feature_names,
-
-    "importance":
-        model.feature_importances_,
-
-})
-
-feature_importance = (
-    feature_importance
-    .sort_values(
+    importance_df = pd.DataFrame({
+        "feature": feature_names,
+        "importance": model.feature_importances_,
+    }).sort_values(
         by="importance",
-        ascending=False
+        ascending=False,
     )
-)
 
-
-print(
-    feature_importance.to_string(
-        index=False
+    print(
+        importance_df.to_string(
+            index=False,
+            formatters={
+                "importance": "{:.6f}".format,
+            },
+        )
     )
-)
+
+    return importance_df
 
 
 # ============================================================
-# SAVE MODEL
+# MAIN TRAINING PIPELINE
 # ============================================================
 
-print("\n" + "=" * 70)
-print("SAVING MODEL")
-print("=" * 70)
+def main():
 
-joblib.dump(
-    model,
-    MODEL_PATH
-)
+    start_time = time.time()
 
-print(
-    "\nModel saved successfully!"
-)
+    print("=" * 70)
+    print("PHISHSHIELD RANDOM FOREST MODEL TRAINING")
+    print("=" * 70)
 
-print(
-    f"Model location:\n{MODEL_PATH}"
-)
+    os.makedirs(MODEL_DIR, exist_ok=True)
+
+    # Step 1: Load and clean the dataset.
+    df = load_and_clean_dataset()
+
+    # Step 2: Verify feature definitions.
+    feature_names = get_feature_names()
+
+    if len(feature_names) != EXPECTED_FEATURE_COUNT:
+        raise ValueError(
+            f"Expected {EXPECTED_FEATURE_COUNT} features, "
+            f"but found {len(feature_names)}."
+        )
+
+    if len(set(feature_names)) != len(feature_names):
+        raise ValueError(
+            "Duplicate feature names detected."
+        )
+
+    # Step 3: Extract features.
+    X, y = build_feature_matrix(df, feature_names)
+
+    # Step 4: Split into training and test sets.
+    print("\n" + "=" * 70)
+    print("CREATING TRAINING AND TEST SETS")
+    print("=" * 70)
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X,
+        y,
+        test_size=TEST_SIZE,
+        random_state=RANDOM_STATE,
+        stratify=y,
+    )
+
+    print(f"Training samples: {len(X_train):,}")
+    print(f"Testing samples : {len(X_test):,}")
+
+    # Step 5: Configure the Random Forest.
+    print("\n" + "=" * 70)
+    print("TRAINING RANDOM FOREST")
+    print("=" * 70)
+
+    print("Algorithm: Random Forest")
+    print(f"Number of trees: {NUMBER_OF_TREES}")
+    print("Class weight: None")
+    print(f"Random state: {RANDOM_STATE}")
+    print("Parallel processing: enabled")
+
+    model = RandomForestClassifier(
+        n_estimators=NUMBER_OF_TREES,
+        max_depth=None,
+        random_state=RANDOM_STATE,
+        n_jobs=-1,
+        class_weight=None,
+    )
+
+    # Step 6: Train the model.
+    training_start = time.time()
+
+    print("\nTraining model...")
+
+    model.fit(X_train, y_train)
+
+    print(
+        f"\nTraining completed in "
+        f"{time.time() - training_start:.2f} seconds."
+    )
+
+    # Step 7: Evaluate on held-out test data.
+    metrics = evaluate_model(
+        model,
+        X_test,
+        y_test,
+    )
+
+    # Step 8: Display feature importance.
+    importance_df = display_feature_importance(
+        model,
+        feature_names,
+    )
+
+    # Step 9: Save to a temporary file first.
+    # Do not replace the current model until training succeeds.
+    print("\n" + "=" * 70)
+    print("SAVING MODEL")
+    print("=" * 70)
+
+    model_metadata = {
+        "feature_names": feature_names,
+        "threshold": PHISHING_THRESHOLD,
+        "algorithm": "RandomForestClassifier",
+        "n_estimators": NUMBER_OF_TREES,
+        "random_state": RANDOM_STATE,
+        "training_date": datetime.now().isoformat(timespec="seconds"),
+    }
+
+    try:
+        joblib.dump(
+            {
+                "model": model,
+                "metadata": model_metadata,
+            },
+            TEMP_MODEL_PATH,
+        )
+
+        # Verify that the temporary model can be loaded.
+        saved_object = joblib.load(TEMP_MODEL_PATH)
+
+        if (
+            not isinstance(saved_object, dict)
+            or "model" not in saved_object
+            or "metadata" not in saved_object
+        ):
+            raise ValueError(
+                "Saved model validation failed."
+            )
+
+        loaded_model = saved_object["model"]
+
+        if len(loaded_model.feature_names_in_) != EXPECTED_FEATURE_COUNT:
+            raise ValueError(
+                "Saved model feature count is incorrect."
+            )
+
+        # Replace the current model only after validation.
+        os.replace(TEMP_MODEL_PATH, MODEL_PATH)
+
+        print(f"\nModel saved successfully:\n{MODEL_PATH}")
+
+    except Exception:
+        if os.path.exists(TEMP_MODEL_PATH):
+            os.remove(TEMP_MODEL_PATH)
+        raise
+
+    # Step 10: Save a JSON training report.
+    report = {
+        "training_date": datetime.now().isoformat(timespec="seconds"),
+        "dataset_path": DATASET_PATH,
+        "dataset_rows_used": int(len(df)),
+        "training_samples": int(len(X_train)),
+        "testing_samples": int(len(X_test)),
+        "feature_count": int(len(feature_names)),
+        "feature_names": feature_names,
+        "model": model_metadata,
+        "metrics": metrics,
+        "top_features": [
+            {
+                "feature": str(row["feature"]),
+                "importance": float(row["importance"]),
+            }
+            for _, row in importance_df.head(15).iterrows()
+        ],
+        "execution_time_seconds": round(
+            time.time() - start_time,
+            2,
+        ),
+    }
+
+    with open(REPORT_PATH, "w", encoding="utf-8") as report_file:
+        json.dump(report, report_file, indent=4)
+
+    # Step 11: Print summary.
+    print("\n" + "=" * 70)
+    print("TRAINING SUMMARY")
+    print("=" * 70)
+
+    print(f"Dataset rows used: {len(df):,}")
+    print(f"Number of features: {len(feature_names)}")
+    print(f"Training samples: {len(X_train):,}")
+    print(f"Testing samples: {len(X_test):,}")
+    print(f"Accuracy: {metrics['accuracy']:.4f}")
+    print(f"Precision: {metrics['precision']:.4f}")
+    print(f"Recall: {metrics['recall']:.4f}")
+    print(f"F1 Score: {metrics['f1']:.4f}")
+    print(
+        f"False positive rate: "
+        f"{metrics['false_positive_rate']:.4f}"
+    )
+
+    print(
+        f"Total execution time: "
+        f"{time.time() - start_time:.2f} seconds"
+    )
+
+    print(f"\nTraining report saved to:\n{REPORT_PATH}")
+
+    print("\n" + "=" * 70)
+    print("TRAINING COMPLETE")
+    print("=" * 70)
 
 
-# ============================================================
-# FINAL SUMMARY
-# ============================================================
+if __name__ == "__main__":
+    main()
 
-total_time = (
-    time.time()
-    - start_time
-)
-
-print("\n" + "=" * 70)
-print("TRAINING SUMMARY")
-print("=" * 70)
-
-print(
-    f"\nDataset rows used: "
-    f"{len(df):,}"
-)
-
-print(
-    f"Number of features: "
-    f"{len(feature_names)}"
-)
-
-print(
-    f"Training samples: "
-    f"{len(X_train):,}"
-)
-
-print(
-    f"Testing samples: "
-    f"{len(X_test):,}"
-)
-
-print(
-    f"Accuracy: "
-    f"{accuracy:.4f}"
-)
-
-print(
-    f"Precision: "
-    f"{precision:.4f}"
-)
-
-print(
-    f"Recall: "
-    f"{recall:.4f}"
-)
-
-print(
-    f"F1 Score: "
-    f"{f1:.4f}"
-)
-
-print(
-    f"Total execution time: "
-    f"{total_time:.2f} seconds"
-)
-
-print("\n" + "=" * 70)
-print("TRAINING COMPLETE")
-print("=" * 70)

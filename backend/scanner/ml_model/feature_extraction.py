@@ -1,10 +1,12 @@
 import math
 import re
+import ipaddress
+
 from urllib.parse import urlparse
 
 
 # ============================================================
-# SUSPICIOUS WORDS
+# SUSPICIOUS KEYWORDS
 # ============================================================
 
 SUSPICIOUS_WORDS = [
@@ -39,61 +41,120 @@ SUSPICIOUS_WORDS = [
 
 
 # ============================================================
-# ENTROPY
+# URL NORMALIZATION
 # ============================================================
 
-def calculate_entropy(text):
+def normalize_url_for_features(url):
+    """
+    Normalize a URL before extracting features.
 
-    if not text:
+    - Removes surrounding whitespace.
+    - Removes a leading HTTP/HTTPS or other URL scheme.
+    - Removes a leading //.
+    - Removes www. only when it is the actual hostname prefix.
+
+    The URL path and query are preserved.
+    """
+
+    if url is None:
+        return ""
+
+    url = str(url).strip()
+
+    # Remove the scheme.
+    url = re.sub(
+        r"^[a-zA-Z][a-zA-Z0-9+.-]*://",
+        "",
+        url,
+        count=1,
+    )
+
+    # Remove protocol-relative prefix.
+    if url.startswith("//"):
+        url = url[2:]
+
+    # Parse the authority so www. is removed only from
+    # the hostname, not from a path or username.
+    try:
+        parsed = urlparse("//" + url)
+        hostname = parsed.hostname
+
+        if hostname and hostname.lower().startswith("www."):
+            prefix = parsed.netloc
+
+            # Preserve user information if present.
+            if "@" in prefix:
+                userinfo, hostpart = prefix.rsplit("@", 1)
+                if hostpart.lower().startswith("www."):
+                    hostpart = hostpart[4:]
+                prefix = userinfo + "@" + hostpart
+            elif prefix.lower().startswith("www."):
+                prefix = prefix[4:]
+
+            url = prefix + url[len(parsed.netloc):]
+
+    except (ValueError, TypeError):
+        # Leave malformed input unchanged; the extractor
+        # will handle an empty or invalid hostname safely.
+        pass
+
+    return url
+
+
+# ============================================================
+# ENTROPY CALCULATION
+# ============================================================
+
+def calculate_entropy(value):
+    """
+    Calculate Shannon entropy for a string.
+
+    Higher entropy can indicate a more random-looking URL,
+    but entropy alone cannot establish that a URL is malicious.
+    """
+
+    if not value:
         return 0.0
 
-    entropy = 0.0
+    probabilities = [
+        value.count(character) / len(value)
+        for character in set(value)
+    ]
 
-    for character in set(text):
-
-        probability = text.count(character) / len(text)
-
-        if probability > 0:
-
-            entropy -= (
-                probability * math.log2(probability)
-            )
-
-    return entropy
+    return -sum(
+        probability * math.log2(probability)
+        for probability in probabilities
+        if probability > 0
+    )
 
 
 # ============================================================
-# SAFE URL PARSER
-# Handles malformed URLs in the dataset
+# SAFE URL PARSING
 # ============================================================
 
 def safe_urlparse(url):
+    """
+    Parse URLs whether or not the scheme is present.
+    Returns a ParseResult, using an empty result if parsing fails.
+    """
+
+    if not url:
+        return urlparse("")
 
     try:
+        candidate = str(url).strip()
 
-        return urlparse(
-            url if "://" in url else f"http://{url}"
-        )
+        # Support inputs such as example.com/login.
+        if not re.match(
+            r"^[a-zA-Z][a-zA-Z0-9+.-]*://",
+            candidate,
+        ) and not candidate.startswith("//"):
+            candidate = "//" + candidate
 
-    except ValueError:
+        return urlparse(candidate)
 
-        try:
-
-            cleaned_url = (
-                url
-                .replace("[", "")
-                .replace("]", "")
-            )
-
-            return urlparse(
-                f"http://{cleaned_url}"
-            )
-
-        except ValueError:
-
-            return urlparse(
-                "http://invalid-url"
-            )
+    except (ValueError, TypeError):
+        return urlparse("")
 
 
 # ============================================================
@@ -101,21 +162,18 @@ def safe_urlparse(url):
 # ============================================================
 
 def is_ip_address(hostname):
+    """
+    Return 1 for valid IPv4/IPv6 addresses, otherwise 0.
+    """
 
     if not hostname:
-
         return 0
 
-    ip_pattern = (
-        r"^(?:[0-9]{1,3}\.){3}"
-        r"[0-9]{1,3}$"
-    )
-
-    return (
-        1
-        if re.match(ip_pattern, hostname)
-        else 0
-    )
+    try:
+        ipaddress.ip_address(str(hostname).strip("[]"))
+        return 1
+    except (ValueError, TypeError):
+        return 0
 
 
 # ============================================================
@@ -123,80 +181,116 @@ def is_ip_address(hostname):
 # ============================================================
 
 def extract_features(url):
+    """
+    Extract exactly 34 numeric features.
 
-    url = str(url).strip()
+    IMPORTANT:
+    The order of these features must match get_feature_names()
+    and the order used to train the Random Forest model.
+    """
 
-    parsed = safe_urlparse(url)
+    original_url = "" if url is None else str(url).strip()
 
-    # --------------------------------------------------------
-    # Basic components
-    # --------------------------------------------------------
+    # Normalize consistently for training and prediction.
+    normalized_url = normalize_url_for_features(original_url)
 
-    try:
+    url_lower = normalized_url.lower()
 
-        hostname = parsed.hostname or ""
+    parsed = safe_urlparse(normalized_url)
 
-    except ValueError:
-
-        hostname = ""
-
+    hostname = (parsed.hostname or "").lower()
     path = parsed.path or ""
-
     query = parsed.query or ""
-
     scheme = parsed.scheme.lower()
 
-    url_lower = url.lower()
+    # Remove trailing dot for hostname-based calculations.
+    hostname = hostname.rstrip(".")
 
-    hostname_lower = hostname.lower()
+    hostname_lower = hostname
 
+    hostname_parts = [
+        part
+        for part in hostname_lower.split(".")
+        if part
+    ]
 
-    # --------------------------------------------------------
-    # Domain information
-    # --------------------------------------------------------
+    path_lower = path.lower()
 
-    hostname_parts = hostname.split(".")
-
-    if len(hostname_parts) > 2:
-
-        subdomain_count = len(
-            hostname_parts
-        ) - 2
-
-    else:
-
-        subdomain_count = 0
-
-
-    # --------------------------------------------------------
-    # TLD
-    # --------------------------------------------------------
-
-    if "." in hostname:
-
-        tld = hostname.rsplit(
-            ".",
-            1
-        )[1]
-
-    else:
-
+    try:
+        tld = hostname_parts[-1] if hostname_parts else ""
+    except IndexError:
         tld = ""
 
+    # --------------------------------------------------------
+    # FEATURE 1-10: GENERAL URL CHARACTERISTICS
+    # --------------------------------------------------------
+
+    url_length = len(normalized_url)
+
+    hostname_length = len(hostname)
+
+    path_length = len(path)
+
+    query_length = len(query)
+
+    dot_count = normalized_url.count(".")
+
+    hyphen_count = normalized_url.count("-")
+
+    underscore_count = normalized_url.count("_")
+
+    slash_count = normalized_url.count("/")
+
+    question_count = normalized_url.count("?")
+
+    equal_count = normalized_url.count("=")
 
     # --------------------------------------------------------
-    # Character counts
+    # FEATURE 11-20: CHARACTERS, PROTOCOL, AND URL ENTROPY
     # --------------------------------------------------------
+
+    at_count = normalized_url.count("@")
+
+    ampersand_count = normalized_url.count("&")
+
+    percent_count = normalized_url.count("%")
 
     digit_count = sum(
         character.isdigit()
-        for character in url
+        for character in normalized_url
     )
 
     letter_count = sum(
         character.isalpha()
-        for character in url
+        for character in normalized_url
     )
+
+    # A scheme is normally stripped during normalization.
+    # Keep this feature for compatibility with the original
+    # feature definition and existing model schema.
+    https = 1 if scheme == "https" else 0
+
+    has_ip = is_ip_address(hostname)
+
+    # www has been normalized away, so subdomain count is
+    # calculated from the remaining hostname labels.
+    subdomain_count = max(len(hostname_parts) - 2, 0)
+
+    suspicious_word_count = sum(
+        1
+        for word in SUSPICIOUS_WORDS
+        if word in url_lower
+    )
+
+    entropy = calculate_entropy(normalized_url)
+
+    # --------------------------------------------------------
+    # FEATURE 21-28: DOMAIN, TLD, AND CHARACTER FEATURES
+    # --------------------------------------------------------
+
+    domain_length = len(hostname)
+
+    tld_length = len(tld)
 
     hostname_digit_count = sum(
         character.isdigit()
@@ -208,292 +302,144 @@ def extract_features(url):
         for character in hostname
     )
 
-    hostname_hyphen_count = hostname.count(
-        "-"
-    )
+    hostname_hyphen_count = hostname.count("-")
 
     path_digit_count = sum(
         character.isdigit()
         for character in path
     )
 
-
-    # --------------------------------------------------------
-    # Suspicious words
-    # --------------------------------------------------------
-
-    suspicious_word_count = sum(
-        1
-        for word in SUSPICIOUS_WORDS
-        if word in url_lower
-    )
-
-
-    # --------------------------------------------------------
-    # Special characters
-    # --------------------------------------------------------
-
     special_character_count = sum(
-        1
-        for character in url
-        if not character.isalnum()
+        not character.isalnum()
+        for character in normalized_url
     )
 
-
-    if len(url) > 0:
-
-        special_character_ratio = (
-            special_character_count
-            / len(url)
-        )
-
-    else:
-
-        special_character_ratio = 0.0
-
-
-    # --------------------------------------------------------
-    # Hostname entropy
-    # --------------------------------------------------------
-
-    hostname_entropy = calculate_entropy(
-        hostname
+    special_character_ratio = (
+        special_character_count / url_length
+        if url_length > 0
+        else 0.0
     )
 
-
     # --------------------------------------------------------
-    # Path entropy
+    # FEATURE 29-34: ENTROPY, HOSTNAME STRUCTURE, QUERY
     # --------------------------------------------------------
 
-    path_entropy = calculate_entropy(
-        path
-    )
+    hostname_entropy = calculate_entropy(hostname)
 
-
-    # --------------------------------------------------------
-    # Suspicious hostname structure
-    # --------------------------------------------------------
+    path_entropy = calculate_entropy(path_lower)
 
     hostname_starts_with_hyphen = (
-        1
-        if hostname.startswith("-")
-        else 0
+        1 if hostname.startswith("-") else 0
     )
 
     hostname_ends_with_hyphen = (
-        1
-        if hostname.endswith("-")
-        else 0
+        1 if hostname.endswith("-") else 0
     )
 
-
-    # --------------------------------------------------------
-    # Query information
-    # --------------------------------------------------------
-
     query_parameter_count = (
-        query.count("&") + 1
+        len([
+            parameter
+            for parameter in query.split("&")
+            if parameter
+        ])
         if query
         else 0
     )
 
+    hostname_part_count = len(hostname_parts)
 
-    # ========================================================
-    # FINAL FEATURE VECTOR
-    # ========================================================
+    # --------------------------------------------------------
+    # RETURN FEATURES IN THE REQUIRED ORDER
+    # --------------------------------------------------------
 
     features = [
-
-        # 1
-        len(url),
-
-        # 2
-        len(hostname),
-
-        # 3
-        len(path),
-
-        # 4
-        len(query),
-
-        # 5
-        url.count("."),
-
-        # 6
-        url.count("-"),
-
-        # 7
-        url.count("_"),
-
-        # 8
-        url.count("/"),
-
-        # 9
-        url.count("?"),
-
-        # 10
-        url.count("="),
-
-        # 11
-        url.count("@"),
-
-        # 12
-        url.count("&"),
-
-        # 13
-        url.count("%"),
-
-        # 14
-        digit_count,
-
-        # 15
-        letter_count,
-
-        # 16
-        1 if scheme == "https" else 0,
-
-        # 17
-        is_ip_address(hostname),
-
-        # 18
-        subdomain_count,
-
-        # 19
-        suspicious_word_count,
-
-        # 20
-        calculate_entropy(url),
-
-        # ----------------------------------------------------
-        # NEW FEATURES
-        # ----------------------------------------------------
-
-        # 21
-        len(hostname),
-
-        # 22
-        len(tld),
-
-        # 23
-        hostname_digit_count,
-
-        # 24
-        hostname_letter_count,
-
-        # 25
-        hostname_hyphen_count,
-
-        # 26
-        path_digit_count,
-
-        # 27
-        special_character_count,
-
-        # 28
-        special_character_ratio,
-
-        # 29
-        hostname_entropy,
-
-        # 30
-        path_entropy,
-
-        # 31
-        hostname_starts_with_hyphen,
-
-        # 32
-        hostname_ends_with_hyphen,
-
-        # 33
-        query_parameter_count,
-
-        # 34
-        len(hostname_parts),
-
+        url_length,                     # 1
+        hostname_length,                # 2
+        path_length,                    # 3
+        query_length,                   # 4
+        dot_count,                      # 5
+        hyphen_count,                   # 6
+        underscore_count,               # 7
+        slash_count,                    # 8
+        question_count,                 # 9
+        equal_count,                    # 10
+        at_count,                       # 11
+        ampersand_count,                # 12
+        percent_count,                  # 13
+        digit_count,                    # 14
+        letter_count,                   # 15
+        https,                          # 16
+        has_ip,                         # 17
+        subdomain_count,                # 18
+        suspicious_word_count,          # 19
+        entropy,                        # 20
+        domain_length,                  # 21
+        tld_length,                     # 22
+        hostname_digit_count,           # 23
+        hostname_letter_count,          # 24
+        hostname_hyphen_count,          # 25
+        path_digit_count,               # 26
+        special_character_count,        # 27
+        special_character_ratio,        # 28
+        hostname_entropy,               # 29
+        path_entropy,                   # 30
+        hostname_starts_with_hyphen,    # 31
+        hostname_ends_with_hyphen,      # 32
+        query_parameter_count,          # 33
+        hostname_part_count,            # 34
     ]
+
+    if len(features) != 34:
+        raise ValueError(
+            f"Expected 34 features, got {len(features)}."
+        )
 
     return features
 
 
 # ============================================================
 # FEATURE NAMES
-# MUST MATCH extract_features()
 # ============================================================
 
 def get_feature_names():
+    """
+    Return the names in exactly the same order as extract_features.
+    """
 
     return [
-
         "url_length",
-
         "hostname_length",
-
         "path_length",
-
         "query_length",
-
         "dot_count",
-
         "hyphen_count",
-
         "underscore_count",
-
         "slash_count",
-
         "question_count",
-
         "equal_count",
-
         "at_count",
-
         "ampersand_count",
-
         "percent_count",
-
         "digit_count",
-
         "letter_count",
-
         "https",
-
         "has_ip",
-
         "subdomain_count",
-
         "suspicious_word_count",
-
         "entropy",
-
-        # ----------------------------------------------------
-        # NEW FEATURES
-        # ----------------------------------------------------
-
         "domain_length",
-
         "tld_length",
-
         "hostname_digit_count",
-
         "hostname_letter_count",
-
         "hostname_hyphen_count",
-
         "path_digit_count",
-
         "special_character_count",
-
         "special_character_ratio",
-
         "hostname_entropy",
-
         "path_entropy",
-
         "hostname_starts_with_hyphen",
-
         "hostname_ends_with_hyphen",
-
         "query_parameter_count",
-
         "hostname_part_count",
-
     ]
+

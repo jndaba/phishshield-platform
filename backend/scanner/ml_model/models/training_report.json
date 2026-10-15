@@ -1,0 +1,227 @@
+{
+    "training_date": "2026-10-14T16:26:37",
+    "dataset_path": "C:\\Users\\HP\\Desktop\\phishshield-platform\\backend\\scanner\\ml_model\\dataset\\phishing_site_urls.csv",
+    "dataset_rows_used": 507071,
+    "training_samples": 405656,
+    "testing_samples": 101415,
+    "feature_count": 34,
+    "feature_names": [
+        "url_length",
+        "hostname_length",
+        "path_length",
+        "query_length",
+        "dot_count",
+        "hyphen_count",
+        "underscore_count",
+        "slash_count",
+        "question_count",
+        "equal_count",
+        "at_count",
+        "ampersand_count",
+        "percent_count",
+        "digit_count",
+        "letter_count",
+        "https",
+        "has_ip",
+        "subdomain_count",
+        "suspicious_word_count",
+        "entropy",
+        "domain_length",
+        "tld_length",
+        "hostname_digit_count",
+        "hostname_letter_count",
+        "hostname_hyphen_count",
+        "path_digit_count",
+        "special_character_count",
+        "special_character_ratio",
+        "hostname_entropy",
+        "path_entropy",
+        "hostname_starts_with_hyphen",
+        "hostname_ends_with_hyphen",
+        "query_parameter_count",
+        "hostname_part_count"
+    ],
+    "model": {
+        "feature_names": [
+            "url_length",
+            "hostname_length",
+            "path_length",
+            "query_length",
+            "dot_count",
+            "hyphen_count",
+            "underscore_count",
+            "slash_count",
+            "question_count",
+            "equal_count",
+            "at_count",
+            "ampersand_count",
+            "percent_count",
+            "digit_count",
+            "letter_count",
+            "https",
+            "has_ip",
+            "subdomain_count",
+            "suspicious_word_count",
+            "entropy",
+            "domain_length",
+            "tld_length",
+            "hostname_digit_count",
+            "hostname_letter_count",
+            "hostname_hyphen_count",
+            "path_digit_count",
+            "special_character_count",
+            "special_character_ratio",
+            "hostname_entropy",
+            "path_entropy",
+            "hostname_starts_with_hyphen",
+            "hostname_ends_with_hyphen",
+            "query_parameter_count",
+            "hostname_part_count"
+        ],
+        "threshold": 0.5,
+        "algorithm": "RandomForestClassifier",
+        "n_estimators": 200,
+        "random_state": 42,
+        "training_date": "2026-10-14T16:25:19"
+    },
+    "metrics": {
+        "threshold": 0.5,
+        "accuracy": 0.936044963762757,
+        "precision": 0.8936180445342182,
+        "recall": 0.8129949682782761,
+        "f1": 0.8514021260997068,
+        "true_negatives": 76348,
+        "false_positives": 2212,
+        "false_negatives": 4274,
+        "true_positives": 18581,
+        "false_positive_rate": 0.02815682281059063,
+        "threshold_comparison": {
+            "0.3": {
+                "precision": 0.7893695441319107,
+                "recall": 0.8902209582148326,
+                "f1": 0.8367674275138803,
+                "true_negatives": 73131,
+                "false_positives": 5429,
+                "false_negatives": 2509,
+                "true_positives": 20346
+            },
+            "0.35": {
+                "precision": 0.8223009432796474,
+                "recall": 0.8734631371691096,
+                "f1": 0.8471102435712468,
+                "true_negatives": 74246,
+                "false_positives": 4314,
+                "false_negatives": 2892,
+                "true_positives": 19963
+            },
+            "0.4": {
+                "precision": 0.850594745327001,
+                "recall": 0.8541675782104572,
+                "f1": 0.8523774178055277,
+                "true_negatives": 75131,
+                "false_positives": 3429,
+                "false_negatives": 3333,
+                "true_positives": 19522
+            },
+            "0.45": {
+                "precision": 0.8734206189342612,
+                "recall": 0.8347845110479107,
+                "f1": 0.8536656301035818,
+                "true_negatives": 75795,
+                "false_positives": 2765,
+                "false_negatives": 3776,
+                "true_positives": 19079
+            },
+            "0.5": {
+                "precision": 0.8936180445342182,
+                "recall": 0.8129949682782761,
+                "f1": 0.8514021260997068,
+                "true_negatives": 76348,
+                "false_positives": 2212,
+                "false_negatives": 4274,
+                "true_positives": 18581
+            },
+            "0.55": {
+                "precision": 0.9119531762450174,
+                "recall": 0.7908116385911179,
+                "f1": 0.8470731593007452,
+                "true_negatives": 76815,
+                "false_positives": 1745,
+                "false_negatives": 4781,
+                "true_positives": 18074
+            },
+            "0.6": {
+                "precision": 0.9266821836648328,
+                "recall": 0.766484357908554,
+                "f1": 0.8390047654397854,
+                "true_negatives": 77174,
+                "false_positives": 1386,
+                "false_negatives": 5337,
+                "true_positives": 17518
+            }
+        }
+    },
+    "top_features": [
+        {
+            "feature": "suspicious_word_count",
+            "importance": 0.09810627938375562
+        },
+        {
+            "feature": "tld_length",
+            "importance": 0.08741912671113242
+        },
+        {
+            "feature": "entropy",
+            "importance": 0.0706837308765662
+        },
+        {
+            "feature": "hostname_entropy",
+            "importance": 0.058451765181973904
+        },
+        {
+            "feature": "digit_count",
+            "importance": 0.05780298679802106
+        },
+        {
+            "feature": "path_entropy",
+            "importance": 0.0561770294109695
+        },
+        {
+            "feature": "dot_count",
+            "importance": 0.05496289457521362
+        },
+        {
+            "feature": "special_character_ratio",
+            "importance": 0.04840204079331513
+        },
+        {
+            "feature": "slash_count",
+            "importance": 0.046658902572566406
+        },
+        {
+            "feature": "path_length",
+            "importance": 0.04638741374576558
+        },
+        {
+            "feature": "url_length",
+            "importance": 0.0387029547073841
+        },
+        {
+            "feature": "path_digit_count",
+            "importance": 0.038497392914655544
+        },
+        {
+            "feature": "letter_count",
+            "importance": 0.03556977532137744
+        },
+        {
+            "feature": "hostname_digit_count",
+            "importance": 0.03279130767974957
+        },
+        {
+            "feature": "hostname_letter_count",
+            "importance": 0.031629489313912205
+        }
+    ],
+    "execution_time_seconds": 371.47
+}
