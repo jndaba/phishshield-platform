@@ -12,14 +12,14 @@ import {
   Save, 
   CheckCircle2, 
   AlertCircle, 
-  ShieldCheck, 
   UserX,
   UserCheck,
   RotateCcw,
   Info,
   BookOpen,
   Inbox,
-  Mail
+  Video,
+  Image as ImageIcon
 } from 'lucide-react';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
@@ -48,9 +48,11 @@ export default function MasterControlPanel() {
     module_number: 1,
     title: '',
     description: '',
-    category: 'Cyber Defense',
+    category: 'Foundations',
+    image_url: '',
     video_url: '',
-    rich_content: ''
+    rich_content: '',
+    estimated_read_time: '12 mins'
   });
 
   const [runbookForm, setRunbookForm] = useState({
@@ -273,21 +275,25 @@ export default function MasterControlPanel() {
     setEditingItem(item);
     if (item) {
       setModuleForm({
-        module_number: item.module_number,
-        title: item.title,
-        description: item.description,
-        category: item.category || 'Cyber Defense',
+        module_number: item.module_number || 1,
+        title: item.title || '',
+        description: item.description || '',
+        category: item.category || 'Foundations',
+        image_url: item.image_url || '',
         video_url: item.video_url || '',
-        rich_content: item.rich_content || ''
+        rich_content: item.rich_content || '',
+        estimated_read_time: item.estimated_read_time || '12 mins'
       });
     } else {
       setModuleForm({
         module_number: modulesList.length + 1,
         title: '',
         description: '',
-        category: 'Cyber Defense',
+        category: 'Foundations',
+        image_url: '',
         video_url: '',
-        rich_content: ''
+        rich_content: '',
+        estimated_read_time: '12 mins'
       });
     }
     setIsModalOpen(true);
@@ -545,7 +551,7 @@ export default function MasterControlPanel() {
           }`}
         >
           <BookOpen className="w-4 h-4" />
-          <span>Learning Modules</span>
+          <span>Learning Modules &amp; Media</span>
         </button>
 
         <button
@@ -715,7 +721,7 @@ export default function MasterControlPanel() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                   <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">
-                    Educational Content &amp; Modules
+                    Educational Content &amp; Multimedia Modules
                   </h3>
                   <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">
                     {modulesList.length} Modules
@@ -725,14 +731,32 @@ export default function MasterControlPanel() {
                 <div className="divide-y divide-slate-100">
                   {modulesList.map((mod) => (
                     <div key={mod.id} className="py-3.5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                      <div className="space-y-1 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-bold uppercase text-blue-950 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
-                            Module {mod.module_number}
-                          </span>
-                          <h4 className="text-sm font-bold text-slate-900">{mod.title}</h4>
+                      <div className="flex items-center gap-4 min-w-0 flex-1">
+                        <div className="w-16 h-12 rounded-lg bg-slate-100 border border-slate-200 overflow-hidden shrink-0">
+                          {mod.image_url ? (
+                            <img src={mod.image_url} alt={mod.title} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-slate-400">
+                              <ImageIcon className="w-4 h-4" />
+                            </div>
+                          )}
                         </div>
-                        <p className="text-xs text-slate-500 line-clamp-2">{mod.description}</p>
+
+                        <div className="space-y-1 min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold uppercase text-blue-950 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                              Module {mod.module_number}
+                            </span>
+                            <span className="text-[11px] font-semibold text-slate-400">{mod.category}</span>
+                            {mod.video_url && (
+                              <span className="text-[10px] bg-rose-50 text-rose-600 border border-rose-200 px-2 py-0.5 rounded font-bold flex items-center gap-1">
+                                <Video className="w-3 h-3" /> Video Lesson
+                              </span>
+                            )}
+                          </div>
+                          <h4 className="text-sm font-bold text-slate-900 truncate">{mod.title}</h4>
+                          <p className="text-xs text-slate-500 line-clamp-1">{mod.description}</p>
+                        </div>
                       </div>
                       
                       <div className="flex items-center gap-2 self-end md:self-center shrink-0">
@@ -799,9 +823,6 @@ export default function MasterControlPanel() {
                         <h4 className="text-sm font-bold text-slate-900 truncate">{scen.subject}</h4>
                         <p className="text-xs text-slate-500">
                           <strong>From:</strong> {scen.sender_display_name || scen.sender_name} &lt;{scen.sender_email}&gt;
-                        </p>
-                        <p className="text-[11px] text-slate-600 line-clamp-1 italic">
-                          <strong>Clues:</strong> {scen.detailed_explanation || scen.clues}
                         </p>
                       </div>
 
@@ -1058,21 +1079,38 @@ export default function MasterControlPanel() {
                       className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:border-blue-950"
                     />
                   </div>
+
                   <div>
-                    <label className="block font-bold text-slate-700 mb-1">Video Embed URL (Optional)</label>
+                    <label className="block font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                      <ImageIcon className="w-3.5 h-3.5 text-blue-950" /> Infographic / Banner Image URL
+                    </label>
                     <input
                       type="url"
-                      placeholder="https://www.youtube.com/embed/..."
-                      value={moduleForm.video_url}
-                      onChange={(e) => setModuleForm({ ...moduleForm, video_url: e.target.value })}
-                      className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:border-blue-950"
+                      value={moduleForm.image_url}
+                      onChange={(e) => setModuleForm({ ...moduleForm, image_url: e.target.value })}
+                      placeholder="https://images.unsplash.com/photo-..."
+                      className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:border-blue-950 font-mono text-[10px]"
                     />
                   </div>
+
                   <div>
-                    <label className="block font-bold text-slate-700 mb-1">Rich HTML Content</label>
+                    <label className="block font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                      <Video className="w-3.5 h-3.5 text-rose-600" /> YouTube Lecture Video URL
+                    </label>
+                    <input
+                      type="url"
+                      value={moduleForm.video_url}
+                      onChange={(e) => setModuleForm({ ...moduleForm, video_url: e.target.value })}
+                      placeholder="https://www.youtube.com/watch?v=..."
+                      className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:border-blue-950 font-mono text-[10px]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Rich HTML Curriculum Body</label>
                     <textarea
                       rows={4}
-                      placeholder="<p>Module content goes here...</p>"
+                      placeholder="<h2>Section</h2><p>Body...</p>"
                       value={moduleForm.rich_content}
                       onChange={(e) => setModuleForm({ ...moduleForm, rich_content: e.target.value })}
                       className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:border-blue-950 font-mono text-[10px]"
@@ -1376,7 +1414,7 @@ export default function MasterControlPanel() {
                         required
                         value={contactForm.phone}
                         onChange={(e) => setContactForm({ ...contactForm, phone: e.target.value })}
-                        placeholder="+25421952909"
+                        placeholder="+254..."
                         className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:border-blue-950"
                       />
                     </div>

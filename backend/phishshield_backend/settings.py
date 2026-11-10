@@ -35,7 +35,7 @@ INSTALLED_APPS = [
 
     # Internal Project Apps
     'authentication.apps.AuthenticationConfig',
-    'scanner',
+    'scanner.apps.ScannerConfig',
     'simulation',
     'lms_content',
     'recovery',
