@@ -1,3 +1,4 @@
+import base64
 import uuid
 from django.conf import settings
 from django.core.mail import send_mail
@@ -14,6 +15,47 @@ from .models import UserProfile, ActivityAudit, PlatformContact
 from lms_content.models import LearningModule, UserProgress
 from simulation.models import SimulationResult, QuizSubmission
 from chat.models import SupportTicketMessage
+
+
+def _get_avatar_url(profile):
+    if not profile:
+        return None
+    if profile.avatar_data:
+        return profile.avatar_data
+    if profile.avatar:
+        return profile.avatar.url
+    return None
+
+
+def compute_and_sync_readiness(user, profile):
+    """Dynamically calculates learner readiness score (0-100) from modules, simulations, and assessment."""
+    if not profile or user.is_staff or profile.is_admin:
+        return 0
+
+    total_modules = LearningModule.objects.count()
+    completed_modules = UserProgress.objects.filter(user=user, completed=True).count()
+    module_pct = (completed_modules / total_modules * 100) if total_modules > 0 else 0
+
+    sim_results = SimulationResult.objects.filter(user=user)
+    total_sims = sim_results.count()
+    correct_sims = sim_results.filter(is_correct=True).count()
+    sim_pct = (correct_sims / total_sims * 100) if total_sims > 0 else 0
+
+    best_quiz = QuizSubmission.objects.filter(user=user).order_by('-score').first()
+    if best_quiz and getattr(best_quiz, 'total_questions', 0) > 0:
+        quiz_pct = (best_quiz.score / best_quiz.total_questions) * 100
+    else:
+        quiz_pct = 0
+
+    # Weighted readiness: 40% Module Completion + 35% Simulation Accuracy + 25% Assessment Score
+    score = round((0.40 * module_pct) + (0.35 * sim_pct) + (0.25 * quiz_pct))
+    score = max(0, min(100, score))
+
+    if profile.readiness_score != score:
+        profile.readiness_score = score
+        profile.save(update_fields=['readiness_score'])
+
+    return score
 
 
 # ====================================================
@@ -67,6 +109,7 @@ class RegisterView(APIView):
                 'username': user.username,
                 'email': user.email,
                 'is_admin': profile.is_admin,
+                'avatar': _get_avatar_url(profile),
                 'readiness_score': 0 if profile.is_admin else profile.readiness_score
             }
         }, status=status.HTTP_201_CREATED)
@@ -91,8 +134,9 @@ class LoginView(APIView):
                 return Response({'error': 'Valid Admin Key required for administrative console access.'}, status=status.HTTP_403_FORBIDDEN)
 
         refresh = RefreshToken.for_user(user)
-        user_profile = getattr(user, 'profile', None)
-        is_admin_flag = user_profile.is_admin if user_profile else user.is_staff
+        user_profile, _ = UserProfile.objects.get_or_create(user=user)
+        is_admin_flag = user_profile.is_admin or user.is_staff
+        readiness = compute_and_sync_readiness(user, user_profile)
 
         return Response({
             'refresh': str(refresh),
@@ -102,7 +146,8 @@ class LoginView(APIView):
                 'username': user.username,
                 'email': user.email,
                 'is_admin': is_admin_flag,
-                'readiness_score': 0 if is_admin_flag else (user_profile.readiness_score if user_profile else 0)
+                'avatar': _get_avatar_url(user_profile),
+                'readiness_score': 0 if is_admin_flag else readiness
             }
         })
 
@@ -111,38 +156,60 @@ class RequestPasswordResetView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
-        email = request.data.get('email', '').strip()
-        user = User.objects.filter(email=email).first()
+        identifier = request.data.get('email', '').strip()
+        user = User.objects.filter(Q(email__iexact=identifier) | Q(username__iexact=identifier)).first()
         if not user:
-            return Response({'message': 'If this email exists, a recovery link has been dispatched.'}, status=200)
+            return Response(
+                {'error': 'No account found matching that email or username.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
         token = str(uuid.uuid4())
         profile, _ = UserProfile.objects.get_or_create(user=user)
         profile.reset_password_token = token
         profile.save()
 
-        frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
+        frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173').rstrip('/')
         reset_link = f"{frontend_url}/reset-password?token={token}"
-        send_mail(
-            subject="PhishShield Security - Password Reset Request",
-            message=f"Hello {user.username},\n\nClick the link below to reset your password:\n\n{reset_link}",
-            from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'security@phishshield.local'),
-            recipient_list=[email],
-            fail_silently=True,
-        )
-        return Response({'message': 'If this email exists, a recovery link has been dispatched.'}, status=200)
+
+        email_sent = False
+        host_user = getattr(settings, 'EMAIL_HOST_USER', '')
+        if host_user and 'your-email' not in host_user:
+            try:
+                send_mail(
+                    subject="PhishShield Security - Password Reset Request",
+                    message=f"Hello {user.username},\n\nClick the link below to reset your password:\n\n{reset_link}",
+                    from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'security@phishshield.local'),
+                    recipient_list=[user.email],
+                    fail_silently=False,
+                )
+                email_sent = True
+            except Exception:
+                email_sent = False
+
+        return Response({
+            'message': 'Password reset link generated! Click below to reset your password now.' if not email_sent else 'Recovery link dispatched to your email.',
+            'reset_link': reset_link,
+            'token': token
+        }, status=status.HTTP_200_OK)
 
 
 class ResetPasswordConfirmView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
-        token = request.data.get('token')
-        new_password = request.data.get('password')
+        token = request.data.get('token', '').strip()
+        new_password = request.data.get('password', '')
+
+        if not token or not new_password:
+            return Response({'error': 'Reset token and new password are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if len(new_password) < 6:
+            return Response({'error': 'Password must be at least 6 characters long.'}, status=status.HTTP_400_BAD_REQUEST)
 
         profile = UserProfile.objects.filter(reset_password_token=token).first()
         if not profile:
-            return Response({'error': 'Invalid or expired password reset link.'}, status=400)
+            return Response({'error': 'Invalid or expired password reset link.'}, status=status.HTTP_400_BAD_REQUEST)
 
         user = profile.user
         user.set_password(new_password)
@@ -151,7 +218,7 @@ class ResetPasswordConfirmView(APIView):
         profile.reset_password_token = None
         profile.save()
 
-        return Response({'message': 'Password has been successfully updated.'}, status=200)
+        return Response({'message': 'Password has been successfully updated.'}, status=status.HTTP_200_OK)
 
 
 # ====================================================
@@ -179,8 +246,9 @@ class CurrentUserStatsView(APIView):
         activities = ActivityAudit.objects.filter(user=user).order_by('-timestamp')[:5]
 
         passed_quiz = QuizSubmission.objects.filter(user=user, passed=True).exists()
+        is_certified = passed_quiz and (completed_modules >= total_modules and total_modules > 0)
+        readiness_score = compute_and_sync_readiness(user, profile)
 
-        # Dynamic unread support messages for live notification indicator
         unread_support_count = SupportTicketMessage.objects.filter(
             recipient=user,
             is_read=False
@@ -188,11 +256,12 @@ class CurrentUserStatsView(APIView):
 
         return Response({
             'user': {
+                'id': user.id,
                 'username': user.username,
                 'email': user.email,
                 'is_admin': is_admin,
-                # Administrators do not maintain a learner readiness score
-                'readiness_score': 0 if is_admin else profile.readiness_score,
+                'avatar': _get_avatar_url(profile),
+                'readiness_score': 0 if is_admin else readiness_score,
                 'streak_days': profile.streak_days,
             },
             'stats': {
@@ -202,7 +271,7 @@ class CurrentUserStatsView(APIView):
                 'total_simulations': total_sims,
                 'sim_accuracy': sim_accuracy,
                 'urls_scanned': url_scans_count,
-                'is_certified': passed_quiz and (completed_modules >= total_modules and total_modules > 0),
+                'is_certified': is_certified,
                 'unread_messages_count': unread_support_count
             },
             'recent_activity': [{
@@ -225,7 +294,6 @@ class AdminMetricsView(APIView):
         if not is_admin:
             return Response({'error': 'Forbidden: Administrator privileges required.'}, status=status.HTTP_403_FORBIDDEN)
 
-        # Strictly exclude staff, superusers, and any user marked as admin in UserProfile
         learners = User.objects.filter(is_staff=False).exclude(
             Q(is_superuser=True) | Q(profile__is_admin=True) | Q(id=user.id)
         ).distinct()
@@ -239,7 +307,8 @@ class AdminMetricsView(APIView):
             sims = SimulationResult.objects.filter(user=l).count()
             last_act = ActivityAudit.objects.filter(user=l).first()
             is_cert = QuizSubmission.objects.filter(user=l, passed=True).exists() and (c_mods >= total_modules and total_modules > 0)
-            readiness = getattr(getattr(l, 'profile', None), 'readiness_score', 0)
+            l_profile, _ = UserProfile.objects.get_or_create(user=l)
+            readiness = compute_and_sync_readiness(l, l_profile)
 
             learner_data.append({
                 'id': l.id,
@@ -255,7 +324,6 @@ class AdminMetricsView(APIView):
 
         recent_audits = ActivityAudit.objects.all().order_by('-timestamp')[:8]
 
-        # Total unread support messages sent to this administrator
         unread_admin_count = SupportTicketMessage.objects.filter(
             recipient=user,
             is_read=False
@@ -414,12 +482,14 @@ class AdminAllUsersListView(APIView):
         data = []
         for u in users:
             is_adm = u.is_staff or getattr(getattr(u, 'profile', None), 'is_admin', False)
+            u_profile, _ = UserProfile.objects.get_or_create(user=u)
+            readiness = compute_and_sync_readiness(u, u_profile)
             data.append({
                 'id': u.id,
                 'username': u.username,
                 'email': u.email,
                 'is_admin': is_adm,
-                'readiness_score': 0 if is_adm else getattr(getattr(u, 'profile', None), 'readiness_score', 0),
+                'readiness_score': 0 if is_adm else readiness,
                 'date_joined': u.date_joined.strftime('%b %d, %Y'),
                 'is_self': u.id == request.user.id
             })
@@ -469,7 +539,6 @@ class AdminUserDetailManageView(APIView):
 
         profile, _ = UserProfile.objects.get_or_create(user=target_user)
 
-        # 1. Update Administrator Status
         if is_admin is not None:
             if target_user.id == request.user.id and not is_admin:
                 return Response({'error': 'Safety restriction: You cannot demote your own admin account.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -480,7 +549,6 @@ class AdminUserDetailManageView(APIView):
                 profile.readiness_score = 0
             profile.save()
 
-        # 2. Reset Learner Readiness & Training History
         if reset_score:
             profile.readiness_score = 0
             profile.simulations_completed = 0
@@ -488,6 +556,7 @@ class AdminUserDetailManageView(APIView):
 
             UserProgress.objects.filter(user=target_user).delete()
             SimulationResult.objects.filter(user=target_user).delete()
+            QuizSubmission.objects.filter(user=target_user).delete()
 
             ActivityAudit.objects.create(
                 user=request.user,
@@ -540,13 +609,17 @@ class UserProfileUpdateView(APIView):
             user.set_password(new_password)
 
         if avatar:
-            profile.avatar = avatar
+            if avatar.size > 2 * 1024 * 1024:
+                return Response({'error': 'Profile photo must be smaller than 2MB.'}, status=status.HTTP_400_BAD_REQUEST)
+            mime_type = avatar.content_type or 'image/jpeg'
+            encoded = base64.b64encode(avatar.read()).decode('utf-8')
+            profile.avatar_data = f"data:{mime_type};base64,{encoded}"
 
         user.save()
         profile.save()
 
         is_adm = user.is_staff or profile.is_admin
-        avatar_url = profile.avatar.url if profile.avatar else None
+        readiness = compute_and_sync_readiness(user, profile)
 
         return Response({
             'message': 'Profile updated successfully.',
@@ -555,7 +628,7 @@ class UserProfileUpdateView(APIView):
                 'username': user.username,
                 'email': user.email,
                 'is_admin': is_adm,
-                'avatar': avatar_url,
-                'readiness_score': 0 if is_adm else profile.readiness_score
+                'avatar': _get_avatar_url(profile),
+                'readiness_score': 0 if is_adm else readiness
             }
         }, status=status.HTTP_200_OK)

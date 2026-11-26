@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { 
   BookOpen, 
   CheckCircle, 
@@ -6,16 +6,17 @@ import {
   PlayCircle, 
   ArrowLeft, 
   Clock, 
-  X, 
   Video,
-  ExternalLink 
+  ExternalLink,
+  RotateCcw
 } from 'lucide-react';
 import axios from 'axios';
+import { AuthContext } from '../context/AuthContext';
 
 const MODULES_API = '/api/lms/modules/';
-const PROGRESS_API = '/api/lms/progress/';
 
 export default function LearningCenter() {
+  const { setUser } = useContext(AuthContext);
   const [modules, setModules] = useState([]);
   const [currentModule, setCurrentModule] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -24,10 +25,9 @@ export default function LearningCenter() {
   const fetchModules = async () => {
     try {
       const res = await axios.get(MODULES_API);
-      console.log("Fetched Modules Payload:", res.data);
-      setModules(res.data);
+      setModules(res.data || []);
     } catch (err) {
-      console.error("Failed to load LMS modules", err);
+      console.error('Failed to load LMS modules', err);
     } finally {
       setLoading(false);
     }
@@ -40,18 +40,32 @@ export default function LearningCenter() {
   const handleComplete = async (moduleId) => {
     setCompleting(true);
     try {
-      await axios.post(`${PROGRESS_API}${moduleId}/`, {
+      const res = await axios.post(`${MODULES_API}${moduleId}/progress/`, {
         completed: true,
         score: 100
       });
+
       setModules(prev =>
-        prev.map(m => m.id === moduleId ? { ...m, is_completed: true } : m)
+        prev.map(m =>
+          m.id === moduleId ? { ...m, is_completed: true, completed: true } : m
+        )
       );
+
+      if (setUser && res.data?.new_score !== undefined) {
+        setUser(prev => {
+          if (!prev) return prev;
+          const updated = { ...prev, readiness_score: res.data.new_score };
+          localStorage.setItem('user', JSON.stringify(updated));
+          return updated;
+        });
+      }
+
+      setCurrentModule(null);
     } catch (err) {
-      console.log("Local completion updated (Offline Fallback)");
+      console.error('Failed to mark module complete:', err);
+      alert(err.response?.data?.error || 'Could not update module progress. Please check your connection.');
     } finally {
       setCompleting(false);
-      setCurrentModule(null);
     }
   };
 
@@ -62,40 +76,55 @@ export default function LearningCenter() {
     return (match && match[2].length === 11) ? `https://www.youtube.com/embed/${match[2]}` : null;
   };
 
+  const completedCount = modules.filter(m => m.is_completed || m.completed).length;
+  const totalCount = modules.length;
+  const progressPct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+
   // FULL-SCREEN IMMERSIVE STUDY MODE (Midnight Theme)
   if (currentModule) {
+    const isAlreadyCompleted = Boolean(currentModule.is_completed || currentModule.completed);
+
     return (
       <div className="fixed inset-0 bg-blue-950 text-slate-100 z-50 flex flex-col overflow-y-auto">
-        <div className="sticky top-0 bg-blue-900 border-b border-blue-800 px-8 py-4 flex items-center justify-between z-10 shadow-md">
+        <div className="sticky top-0 bg-blue-900 border-b border-blue-800 px-4 sm:px-8 py-3.5 sm:py-4 flex flex-wrap items-center justify-between gap-3 z-10 shadow-md">
           <button
             onClick={() => setCurrentModule(null)}
             className="flex items-center gap-2 text-xs font-bold text-blue-200 hover:text-white transition cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" /> Return to Learning Lab
           </button>
-          <div className="flex items-center gap-4">
-            <span className="text-xs text-blue-300 flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5" /> {currentModule.estimated_read_time || "12 mins"}
+          <div className="flex items-center gap-3 sm:gap-4">
+            <span className="hidden sm:flex text-xs text-blue-300 items-center gap-1">
+              <Clock className="w-3.5 h-3.5" /> {currentModule.estimated_read_time || '12 mins'}
             </span>
             <button
               onClick={() => handleComplete(currentModule.id)}
               disabled={completing}
-              className="bg-white hover:bg-slate-100 text-blue-950 font-bold px-4 py-2 rounded-xl text-xs transition flex items-center gap-1.5 cursor-pointer shadow-md disabled:opacity-50"
+              className={`font-bold px-3.5 sm:px-4 py-2 rounded-xl text-xs transition flex items-center gap-1.5 cursor-pointer shadow-md disabled:opacity-50 ${
+                isAlreadyCompleted
+                  ? 'bg-emerald-500 hover:bg-emerald-400 text-white'
+                  : 'bg-white hover:bg-slate-100 text-blue-950'
+              }`}
             >
-              <CheckCircle className="w-4 h-4" /> {completing ? 'Updating...' : 'Mark Complete & Exit'}
+              <CheckCircle className="w-4 h-4" />
+              {completing
+                ? 'Updating...'
+                : isAlreadyCompleted
+                  ? 'Completed (Exit)'
+                  : 'Mark Complete & Exit'}
             </button>
           </div>
         </div>
 
-        <div className="max-w-4xl mx-auto w-full p-8 md:p-12 space-y-8">
+        <div className="max-w-4xl mx-auto w-full p-5 sm:p-8 md:p-12 space-y-6 sm:space-y-8">
           <div>
             <span className="text-xs font-bold text-blue-300 uppercase tracking-widest">
-              Module {currentModule.module_number} · {currentModule.category || "Defense Tactics"}
+              Module {currentModule.module_number} · {currentModule.category || 'Defense Tactics'}
             </span>
-            <h1 className="text-3xl md:text-4xl font-extrabold text-white mt-2 leading-tight">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-white mt-2 leading-tight">
               {currentModule.title}
             </h1>
-            <p className="text-sm text-blue-200 mt-2">{currentModule.description}</p>
+            <p className="text-xs sm:text-sm text-blue-200 mt-2">{currentModule.description}</p>
           </div>
 
           {/* Infographic Cover Image */}
@@ -168,14 +197,14 @@ export default function LearningCenter() {
           )}
 
           <div
-            className="bg-blue-900/40 border border-blue-800 p-8 rounded-2xl text-slate-200 text-sm leading-relaxed space-y-4 shadow-inner prose prose-invert max-w-none"
+            className="bg-blue-900/40 border border-blue-800 p-5 sm:p-8 rounded-2xl text-slate-200 text-sm leading-relaxed space-y-4 shadow-inner prose prose-invert max-w-none"
             dangerouslySetInnerHTML={{ __html: currentModule.rich_content || currentModule.description }}
           />
 
           {currentModule.document && (
-            <div className="p-5 bg-blue-900/60 border border-blue-700 rounded-xl flex items-center justify-between">
+            <div className="p-5 bg-blue-900/60 border border-blue-700 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <FileText className="w-6 h-6 text-white" />
+                <FileText className="w-6 h-6 text-white shrink-0" />
                 <div>
                   <h4 className="text-sm font-bold text-white">Reference Document / Checklist PDF</h4>
                   <p className="text-[11px] text-blue-200 mt-0.5">Download supplementary offline material</p>
@@ -192,7 +221,7 @@ export default function LearningCenter() {
             </div>
           )}
 
-          <div className="pt-6 border-t border-blue-900 flex justify-between items-center">
+          <div className="pt-6 border-t border-blue-900 flex flex-wrap justify-between items-center gap-3">
             <button
               onClick={() => setCurrentModule(null)}
               className="text-xs text-blue-300 hover:text-white font-semibold cursor-pointer"
@@ -202,9 +231,10 @@ export default function LearningCenter() {
             <button
               onClick={() => handleComplete(currentModule.id)}
               disabled={completing}
-              className="bg-white hover:bg-slate-100 text-blue-950 font-bold px-6 py-3 rounded-xl text-xs transition shadow-md cursor-pointer disabled:opacity-50"
+              className="bg-white hover:bg-slate-100 text-blue-950 font-bold px-6 py-3 rounded-xl text-xs transition shadow-md cursor-pointer disabled:opacity-50 flex items-center gap-2"
             >
-              {completing ? 'Updating...' : 'Finish Module'}
+              <CheckCircle className="w-4 h-4 text-emerald-600" />
+              <span>{completing ? 'Updating...' : isAlreadyCompleted ? 'Completed · Return' : 'Finish & Mark Complete'}</span>
             </button>
           </div>
         </div>
@@ -214,12 +244,27 @@ export default function LearningCenter() {
 
   // STANDARD CATALOG VIEW
   return (
-    <div className="max-w-7xl mx-auto p-8 space-y-6">
-      <div className="flex justify-between items-center border-b border-slate-200/80 pb-4">
+    <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+      <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-extrabold text-slate-900">Security Awareness Academy</h2>
+          <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">Security Awareness Academy</h2>
           <p className="text-xs text-slate-500 mt-1">Comprehensive Training Modules with Video Lessons and Defense Checklists.</p>
         </div>
+
+        {totalCount > 0 && (
+          <div className="w-full md:w-72 bg-slate-50 border border-slate-200 rounded-xl p-3">
+            <div className="flex justify-between items-center text-xs font-bold text-slate-700 mb-1.5">
+              <span>Curriculum Progress</span>
+              <span className="text-blue-600">{completedCount} / {totalCount} ({progressPct}%)</span>
+            </div>
+            <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                style={{ width: `${progressPct}%` }}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {loading ? (
@@ -231,51 +276,75 @@ export default function LearningCenter() {
           <p className="text-xs mt-1">Your administrators have not published any learning content yet.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {modules.map((mod) => (
-            <div
-              key={mod.id}
-              className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs hover:border-blue-950 transition flex flex-col justify-between group"
-            >
-              <div>
-                {/* Module Visual Cover Image */}
-                <div className="h-44 w-full bg-slate-100 relative overflow-hidden border-b border-slate-100">
-                  <img 
-                    src={mod.image_url || 'https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=1200&q=80'} 
-                    alt={mod.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition duration-500" 
-                  />
-                  <div className="absolute top-3 left-3 bg-blue-950/80 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
-                    Module {mod.module_number}
-                  </div>
-                  {mod.video_url && (
-                    <div className="absolute bottom-3 right-3 bg-rose-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 shadow-md">
-                      <Video className="w-3 h-3" /> Video Lesson
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
+          {modules.map((mod) => {
+            const isCompleted = Boolean(mod.is_completed || mod.completed);
+
+            return (
+              <div
+                key={mod.id}
+                className={`bg-white border rounded-2xl overflow-hidden shadow-xs transition flex flex-col justify-between group ${
+                  isCompleted ? 'border-emerald-200 hover:border-emerald-500' : 'border-slate-200 hover:border-blue-950'
+                }`}
+              >
+                <div>
+                  {/* Module Visual Cover Image */}
+                  <div className="h-44 w-full bg-slate-100 relative overflow-hidden border-b border-slate-100">
+                    <img 
+                      src={mod.image_url || 'https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=1200&q=80'} 
+                      alt={mod.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition duration-500" 
+                    />
+                    <div className="absolute top-3 left-3 bg-blue-950/80 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
+                      Module {mod.module_number}
                     </div>
-                  )}
-                </div>
-
-                <div className="p-5 space-y-2">
-                  <div className="flex items-center justify-between text-[11px] font-semibold text-slate-400">
-                    <span className="text-blue-950 font-bold">{mod.category || "Foundations"}</span>
-                    <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {mod.estimated_read_time || "12 mins"}</span>
+                    {isCompleted && (
+                      <div className="absolute top-3 right-3 bg-emerald-600 text-white text-[10px] font-black px-2.5 py-1 rounded-lg flex items-center gap-1 shadow-md">
+                        <CheckCircle className="w-3 h-3" /> Completed
+                      </div>
+                    )}
+                    {mod.video_url && (
+                      <div className="absolute bottom-3 right-3 bg-rose-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 shadow-md">
+                        <Video className="w-3 h-3" /> Video Lesson
+                      </div>
+                    )}
                   </div>
-                  <h3 className="font-extrabold text-sm text-slate-900 line-clamp-1 group-hover:text-blue-950 transition-colors">{mod.title}</h3>
-                  <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">{mod.description}</p>
+
+                  <div className="p-5 space-y-2">
+                    <div className="flex items-center justify-between text-[11px] font-semibold text-slate-400">
+                      <span className="text-blue-950 font-bold">{mod.category || 'Foundations'}</span>
+                      <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {mod.estimated_read_time || '12 mins'}</span>
+                    </div>
+                    <h3 className="font-extrabold text-sm text-slate-900 line-clamp-1 group-hover:text-blue-950 transition-colors">{mod.title}</h3>
+                    <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">{mod.description}</p>
+                  </div>
+                </div>
+
+                <div className="p-5 pt-0">
+                  <button
+                    onClick={() => setCurrentModule(mod)}
+                    className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer shadow-sm ${
+                      isCompleted
+                        ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200'
+                        : 'bg-blue-950 hover:bg-blue-900 text-white'
+                    }`}
+                  >
+                    {isCompleted ? (
+                      <>
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        <span>Review Completed Lesson</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Start Lesson</span>
+                        <PlayCircle className="w-3.5 h-3.5" />
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
-
-              <div className="p-5 pt-0">
-                <button
-                  onClick={() => setCurrentModule(mod)}
-                  className="w-full py-2.5 px-4 bg-blue-950 hover:bg-blue-900 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer shadow-sm"
-                >
-                  <span>Start Lesson</span>
-                  <PlayCircle className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

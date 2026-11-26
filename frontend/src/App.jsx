@@ -1,5 +1,6 @@
-import React, { useContext } from 'react';
+import React, { useContext, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Menu, Shield } from 'lucide-react';
 import { AuthProvider, AuthContext } from './context/AuthContext';
 import Sidebar from './components/Sidebar';
 import AdminSidebar from './components/AdminSidebar';
@@ -27,6 +28,7 @@ import AdminConsole from './pages/AdminConsole';
 
 const ProtectedLayout = () => {
   const { user } = useContext(AuthContext);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   if (!user) {
     return <Navigate to="/login" replace />;
@@ -34,36 +36,78 @@ const ProtectedLayout = () => {
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
-      {/* Dynamically switches sidebar based on admin privileges */}
-      {user.is_admin ? <AdminSidebar /> : <Sidebar />}
+      {/* Desktop Sidebar (visible on md and larger) */}
+      <div className="hidden md:flex shrink-0">
+        {user.is_admin ? <AdminSidebar /> : <Sidebar />}
+      </div>
 
-      <main className="flex-1 overflow-y-auto">
-        <Routes>
-          {/* Dashboard & Landing Routes */}
-          <Route path="/dashboard" element={<ClientDashboard />} />
-          <Route path="/admin-console" element={user.is_admin ? <AdminConsole /> : <Navigate to="/dashboard" replace />} />
-          <Route path="/admin/control-panel" element={user.is_admin ? <MasterControlPanel /> : <Navigate to="/dashboard" replace />} />
+      {/* Mobile Slide-Over Drawer */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-50 md:hidden flex">
+          <div
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+          <div
+            className="relative z-10 flex h-full"
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            {user.is_admin ? (
+              <AdminSidebar mobileOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
+            ) : (
+              <Sidebar mobileOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
+            )}
+          </div>
+        </div>
+      )}
 
-          {/* Member Roster (Dedicated user management) & Profile */}
-          <Route path="/admin/users" element={user.is_admin ? <MemberRoster /> : <Navigate to="/dashboard" replace />} />
-          <Route path="/profile" element={<Profile />} />
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Mobile Top Navigation Bar */}
+        <header className="md:hidden bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between shrink-0 z-30">
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 bg-blue-950 text-white rounded-lg">
+              <Shield className="w-4 h-4" />
+            </div>
+            <span className="font-black text-sm text-slate-900 tracking-tight">PhishShield</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(true)}
+            aria-label="Open navigation menu"
+            className="p-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+        </header>
 
-          {/* Operational Tools */}
-          <Route path="/scanner" element={<Scanner />} />
-          <Route path="/simulation" element={user.is_admin ? <MailSandbox /> : <SimulationInbox />} />
-          <Route path="/recovery" element={<RecoveryGuide />} />
-          <Route path="/chat" element={<SupportChat />} />
-          <Route path="/contact" element={<ContactUs />} />
+        <main className="flex-1 overflow-y-auto overflow-x-hidden">
+          <Routes>
+            {/* Dashboard & Landing Routes */}
+            <Route path="/dashboard" element={<ClientDashboard />} />
+            <Route path="/admin-console" element={user.is_admin ? <AdminConsole /> : <Navigate to="/dashboard" replace />} />
+            <Route path="/admin/control-panel" element={user.is_admin ? <MasterControlPanel /> : <Navigate to="/dashboard" replace />} />
 
-          {/* Learning & Certification */}
-          <Route path="/modules" element={<LearningCenter />} />
-          <Route path="/assessment" element={<Assessment />} />
-          <Route path="/certificates" element={<Certificates />} />
+            {/* Member Roster & Profile */}
+            <Route path="/admin/users" element={user.is_admin ? <MemberRoster /> : <Navigate to="/dashboard" replace />} />
+            <Route path="/profile" element={<Profile />} />
 
-          {/* Catch-all route */}
-          <Route path="*" element={<Navigate to={user.is_admin ? "/admin-console" : "/dashboard"} replace />} />
-        </Routes>
-      </main>
+            {/* Operational Tools */}
+            <Route path="/scanner" element={<Scanner />} />
+            <Route path="/simulation" element={user.is_admin ? <MailSandbox /> : <SimulationInbox />} />
+            <Route path="/recovery" element={<RecoveryGuide />} />
+            <Route path="/chat" element={<SupportChat />} />
+            <Route path="/contact" element={<ContactUs />} />
+
+            {/* Learning & Certification */}
+            <Route path="/modules" element={<LearningCenter />} />
+            <Route path="/assessment" element={<Assessment />} />
+            <Route path="/certificates" element={<Certificates />} />
+
+            {/* Catch-all route */}
+            <Route path="*" element={<Navigate to={user.is_admin ? "/admin-console" : "/dashboard"} replace />} />
+          </Routes>
+        </main>
+      </div>
     </div>
   );
 };

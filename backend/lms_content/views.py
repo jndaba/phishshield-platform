@@ -6,7 +6,8 @@ from django.shortcuts import get_object_or_404
 
 from .models import LearningModule, UserProgress, IncidentGuide
 from .serializers import LearningModuleSerializer, UserProgressSerializer, AdminUserManagementSerializer
-from authentication.models import ActivityAudit
+from authentication.models import ActivityAudit, UserProfile
+from authentication.views import compute_and_sync_readiness
 
 # ==============================================================================
 # 1. Static Rich Learning Curriculum (20 Modules with Active Video URLs)
@@ -416,7 +417,6 @@ class ModuleListCreateView(APIView):
 
     def get(self, request):
         try:
-            # Sync modules and explicitly update existing video_url fields
             for idx, mod in enumerate(RICH_20_MODULES):
                 obj, created = LearningModule.objects.get_or_create(
                     title=mod.get("title"),
@@ -432,7 +432,6 @@ class ModuleListCreateView(APIView):
                 )
                 if not created:
                     updated = False
-                    # Auto-replace stale video URLs or missing images
                     if obj.video_url != mod.get("video_url"):
                         obj.video_url = mod.get("video_url")
                         updated = True
@@ -442,7 +441,6 @@ class ModuleListCreateView(APIView):
                     if updated:
                         obj.save()
 
-            # Ensure sequential ordering
             all_modules = LearningModule.objects.all().order_by('id')
             for idx, mod in enumerate(all_modules):
                 correct_number = idx + 1
@@ -452,6 +450,10 @@ class ModuleListCreateView(APIView):
 
         except Exception as e:
             print(f"Module Sync Exception: {e}")
+
+        completed_ids = set(
+            UserProgress.objects.filter(user=request.user, completed=True).values_list('module_id', flat=True)
+        )
 
         modules = LearningModule.objects.all().order_by('module_number')
         data = []
@@ -467,6 +469,8 @@ class ModuleListCreateView(APIView):
                 'rich_content': mod.rich_content or '',
                 'document': mod.document.url if hasattr(mod, 'document') and mod.document else None,
                 'estimated_read_time': mod.estimated_read_time or '12 mins',
+                'is_completed': mod.id in completed_ids,
+                'completed': mod.id in completed_ids,
             })
             
         return Response(data, status=status.HTTP_200_OK)
@@ -499,6 +503,7 @@ class ModuleDetailView(APIView):
 
     def get(self, request, pk):
         mod = get_object_or_404(LearningModule, pk=pk)
+        is_done = UserProgress.objects.filter(user=request.user, module=mod, completed=True).exists()
         return Response({
             'id': mod.id,
             'module_number': mod.module_number,
@@ -510,6 +515,8 @@ class ModuleDetailView(APIView):
             'rich_content': mod.rich_content,
             'document': mod.document.url if mod.document else None,
             'estimated_read_time': mod.estimated_read_time,
+            'is_completed': is_done,
+            'completed': is_done,
         }, status=status.HTTP_200_OK)
 
     def put(self, request, pk):
@@ -557,6 +564,7 @@ class UserProgressUpdateView(APIView):
     def post(self, request, module_id):
         module = get_object_or_404(LearningModule, id=module_id)
         progress, _ = UserProgress.objects.get_or_create(user=request.user, module=module)
+        was_completed = progress.completed
         progress.completed = request.data.get('completed', True)
         progress.score = request.data.get('score', 100)
         progress.save()
@@ -564,17 +572,26 @@ class UserProgressUpdateView(APIView):
         user = request.user
         total = LearningModule.objects.count()
         completed = UserProgress.objects.filter(user=user, completed=True).count()
-        
-        if hasattr(user, 'profile'):
-            user.profile.readiness_score = min(100, int((completed / total) * 100)) if total > 0 else 0
-            user.profile.save()
-            new_score = user.profile.readiness_score
-        else:
-            new_score = 0
+        progress_pct = round((completed / total) * 100, 1) if total > 0 else 0
+
+        if progress.completed and not was_completed:
+            ActivityAudit.objects.create(
+                user=user,
+                title=f"Completed Module {module.module_number}",
+                description=f"Completed '{module.title}' ({completed}/{total} modules)",
+                activity_type="lms"
+            )
+
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+        new_score = compute_and_sync_readiness(user, profile)
 
         return Response({
             'status': 'progress updated',
+            'module_id': module.id,
             'completed': progress.completed,
+            'completed_modules': completed,
+            'total_modules': total,
+            'progress_percentage': progress_pct,
             'new_score': new_score
         }, status=status.HTTP_200_OK)
 

@@ -11,6 +11,7 @@ class UserProfile(models.Model):
     streak_days = models.IntegerField(default=1)
     reset_password_token = models.CharField(max_length=100, blank=True, null=True)
     avatar = models.ImageField(upload_to='avatars/', null=True, blank=True)
+    avatar_data = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return f"{self.user.username} (Admin: {self.is_admin})"

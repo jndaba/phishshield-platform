@@ -8,6 +8,7 @@ from django.http import HttpResponse
 
 from .models import SimulationScenario, SimulationResult, QuizQuestion, QuizSubmission
 from authentication.models import ActivityAudit, UserProfile
+from authentication.views import compute_and_sync_readiness
 
 
 # ==============================================================================
@@ -436,6 +437,7 @@ class SubmitScenarioDecisionView(APIView):
         total_attempts = SimulationResult.objects.filter(user=request.user).count()
         profile.simulations_completed = total_attempts
         profile.save()
+        new_readiness = compute_and_sync_readiness(request.user, profile)
 
         verdict_str = "Malicious (Phishing)" if user_choice_bool else "Safe (Legitimate)"
         outcome_str = "CORRECT" if is_correct else "INCORRECT"
@@ -458,6 +460,7 @@ class SubmitScenarioDecisionView(APIView):
             'threat_category': scenario.threat_category,
             'detailed_explanation': scenario.detailed_explanation,
             'key_indicators': indicators_list,
+            'readiness_score': new_readiness,
             'feedback_summary': (
                 f"Your assessment was spot-on! This message was {'MALICIOUS' if scenario.is_phishing else 'SAFE'}."
                 if is_correct else
@@ -741,12 +744,24 @@ def seed_quiz_if_needed():
 
 class QuizQuestionListView(APIView):
     """
-    Returns properly formatted Assessment questions for the Learner view.
-    Translates the flat database columns into a structured 'options' dictionary.
+    Returns properly formatted Assessment questions for uncertified learners,
+    or returns a certified lock status if the learner has already passed.
     """
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
+        passed_submission = QuizSubmission.objects.filter(user=request.user, passed=True).order_by('-score').first()
+        if passed_submission:
+            pct = round((passed_submission.score / passed_submission.total_questions * 100), 1) if passed_submission.total_questions > 0 else 100.0
+            return Response({
+                'is_certified': True,
+                'message': 'Assessment already completed and passed. Your certificate is ready for download.',
+                'score': passed_submission.score,
+                'total': passed_submission.total_questions,
+                'percentage': pct,
+                'questions': []
+            }, status=status.HTTP_200_OK)
+
         seed_quiz_if_needed()
         questions = QuizQuestion.objects.all().order_by('id')
         data = []
@@ -768,6 +783,19 @@ class QuizSubmitView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
+        existing_pass = QuizSubmission.objects.filter(user=request.user, passed=True).first()
+        if existing_pass:
+            pct = round((existing_pass.score / existing_pass.total_questions * 100), 1) if existing_pass.total_questions > 0 else 100.0
+            return Response({
+                'error': 'You have already passed this assessment and earned certification.',
+                'is_certified': True,
+                'score': existing_pass.score,
+                'total': existing_pass.total_questions,
+                'percentage': pct,
+                'passed': True,
+                'status': 'PASSED'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
         user_answers = request.data.get('answers', {})
         questions = QuizQuestion.objects.all()
         total = questions.count()
@@ -793,11 +821,24 @@ class QuizSubmitView(APIView):
             passed=passed
         )
 
+        profile, _ = UserProfile.objects.get_or_create(user=request.user)
+        new_readiness = compute_and_sync_readiness(request.user, profile)
+
+        ActivityAudit.objects.create(
+            user=request.user,
+            title=f"Assessment {'Passed' if passed else 'Attempted'} ({percentage}%)",
+            description=f"Scored {correct}/{total} ({percentage}%) on certification examination",
+            activity_type="assessment",
+            risk_score="LOW" if passed else "MEDIUM"
+        )
+
         return Response({
             'score': correct,
             'total': total,
             'percentage': percentage,
             'passed': passed,
+            'is_certified': passed,
+            'readiness_score': new_readiness,
             'status': 'PASSED' if passed else 'FAILED'
         }, status=status.HTTP_200_OK)
 
@@ -807,36 +848,90 @@ class CertificateDownloadView(APIView):
 
     def get(self, request):
         user = request.user
-        passed = QuizSubmission.objects.filter(user=user, passed=True).exists()
+        submission = QuizSubmission.objects.filter(user=user, passed=True).order_by('-score').first()
 
-        if not passed:
+        if not submission:
             return Response(
                 {'error': 'A passing grade of 70% or higher on the Assessment Quiz is required to download your certificate.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        cert_content = f"""
-================================================================================
-                    PHISHSHIELD CYBERSECURITY ACADEMY
-                 CERTIFICATE OF PROFESSIONAL COMPETENCE
-================================================================================
+        from reportlab.lib.pagesizes import landscape, A4
+        from reportlab.pdfgen import canvas
+        from reportlab.lib import colors
 
-This is to certify that:
+        buffer = io.BytesIO()
+        p = canvas.Canvas(buffer, pagesize=landscape(A4))
+        width, height = landscape(A4)
 
-                        {user.get_full_name() or user.username.upper()}
+        # Outer & Inner Borders
+        p.setStrokeColor(colors.HexColor("#1E3A8A"))
+        p.setLineWidth(6)
+        p.rect(28, 28, width - 56, height - 56)
 
-has successfully completed the comprehensive threat detection curriculum,
-mastered the 10 simulated mailbox scenarios, and passed the rigorous 
-Social Engineering & Adversary-in-the-Middle Assessment Examination.
+        p.setStrokeColor(colors.HexColor("#3B82F6"))
+        p.setLineWidth(1.5)
+        p.rect(38, 38, width - 76, height - 76)
 
-Verification Date: {timezone.now().strftime('%B %d, %Y')}
-Credential ID: PS-{user.id:04d}-{timezone.now().strftime('%Y%m%d')}
-Issued by: PhishShield Academic Governance Board
+        # Header
+        p.setFillColor(colors.HexColor("#1E3A8A"))
+        p.setFont("Helvetica-Bold", 28)
+        p.drawCentredString(width / 2, height - 105, "PHISHSHIELD CYBERSECURITY ACADEMY")
 
-================================================================================
-"""
-        response = HttpResponse(cert_content, content_type='text/plain')
-        response['Content-Disposition'] = f'attachment; filename="PhishShield_Certificate_{user.username}.txt"'
+        p.setFillColor(colors.HexColor("#2563EB"))
+        p.setFont("Helvetica-Bold", 15)
+        p.drawCentredString(width / 2, height - 138, "CERTIFICATE OF PROFESSIONAL COMPETENCE")
+
+        # Divider
+        p.setStrokeColor(colors.HexColor("#CBD5E1"))
+        p.setLineWidth(1)
+        p.line(140, height - 158, width - 140, height - 158)
+
+        # Recipient
+        p.setFillColor(colors.HexColor("#475569"))
+        p.setFont("Helvetica", 13)
+        p.drawCentredString(width / 2, height - 200, "This certifies that")
+
+        custom_name = request.query_params.get('name', '').strip()
+        recipient_name = (custom_name or user.get_full_name() or user.username).upper()
+        p.setFillColor(colors.HexColor("#0F172A"))
+        p.setFont("Helvetica-Bold", 30)
+        p.drawCentredString(width / 2, height - 245, recipient_name)
+
+        # Description
+        pct = round((submission.score / submission.total_questions * 100), 1) if submission.total_questions > 0 else 100.0
+        p.setFillColor(colors.HexColor("#334155"))
+        p.setFont("Helvetica", 13)
+        p.drawCentredString(
+            width / 2,
+            height - 295,
+            "has successfully completed the PhishShield Threat Detection Curriculum, mastered the"
+        )
+        p.drawCentredString(
+            width / 2,
+            height - 316,
+            f"Simulated Phishing Sandbox, and passed the Certification Examination with a score of {pct}%."
+        )
+
+        # Metadata Footer
+        credential_id = f"PS-{user.id:04d}-{timezone.now().strftime('%Y%m%d')}"
+        issue_date = timezone.now().strftime("%B %d, %Y")
+
+        p.setFont("Helvetica-Bold", 11)
+        p.setFillColor(colors.HexColor("#1E293B"))
+        p.drawString(85, 85, f"Credential ID: {credential_id}")
+        p.drawRightString(width - 85, 85, f"Issued: {issue_date}")
+
+        p.setFont("Helvetica", 10)
+        p.setFillColor(colors.HexColor("#64748B"))
+        p.drawCentredString(width / 2, 65, "Verified by PhishShield Academic & Security Governance Board")
+
+        p.showPage()
+        p.save()
+        buffer.seek(0)
+
+        response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="PhishShield_Certificate_{user.username}.pdf"'
         return response
 
 

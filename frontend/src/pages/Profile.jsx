@@ -12,21 +12,36 @@ import {
   Users, 
   Search, 
   CheckCircle, 
-  AlertCircle
+  AlertCircle,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 import { API_BASE_URL } from '../main';
 
+function resolveAvatarSrc(src) {
+  if (!src) return null;
+  if (src.startsWith('blob:') || src.startsWith('data:') || src.startsWith('http')) {
+    return src;
+  }
+  return `${API_BASE_URL}${src}`;
+}
+
 export default function Profile() {
   const { user: authUser, setUser } = useContext(AuthContext);
   const [activeTab, setActiveTab] = useState('my-profile');
   const [stats, setStats] = useState(null);
+  const [liveUser, setLiveUser] = useState(authUser || null);
   const [roster, setRoster] = useState([]);
   const [rosterSearch, setRosterSearch] = useState('');
   const [rosterRoleFilter, setRosterRoleFilter] = useState('all');
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState({ type: '', message: '' });
+
+  // Password visibility toggles
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
 
   // Profile Form State
   const [formData, setFormData] = useState({
@@ -38,15 +53,33 @@ export default function Profile() {
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState(authUser?.avatar || null);
 
-  const isAdmin = Boolean(authUser?.is_admin || authUser?.is_staff);
+  const isAdmin = Boolean(liveUser?.is_admin || authUser?.is_admin || authUser?.is_staff);
 
   useEffect(() => {
-    // 1. Fetch performance stats for progress review
     axios.get('/api/auth/user-stats/')
-      .then(res => setStats(res.data.stats))
+      .then(res => {
+        if (res.data?.stats) setStats(res.data.stats);
+        if (res.data?.user) {
+          setLiveUser(res.data.user);
+          setFormData(prev => ({
+            ...prev,
+            username: res.data.user.username || prev.username,
+            email: res.data.user.email || prev.email,
+          }));
+          if (!avatarFile && res.data.user.avatar) {
+            setAvatarPreview(res.data.user.avatar);
+          }
+          if (setUser) {
+            setUser(prev => {
+              const updated = { ...prev, ...res.data.user };
+              localStorage.setItem('user', JSON.stringify(updated));
+              return updated;
+            });
+          }
+        }
+      })
       .catch(() => {});
 
-    // 2. If admin, load member directory
     if (isAdmin) {
       axios.get('/api/auth/manage/users/')
         .then(res => setRoster(res.data || []))
@@ -57,6 +90,10 @@ export default function Profile() {
   const handleAvatarChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        setFeedback({ type: 'error', message: 'Profile photo must be smaller than 2MB.' });
+        return;
+      }
       setAvatarFile(file);
       setAvatarPreview(URL.createObjectURL(file));
     }
@@ -80,8 +117,20 @@ export default function Profile() {
       });
 
       setFeedback({ type: 'success', message: 'Profile credentials updated successfully.' });
-      if (setUser && res.data.user) {
-        setUser(prev => ({ ...prev, ...res.data.user }));
+      setAvatarFile(null);
+
+      if (res.data.user) {
+        setLiveUser(res.data.user);
+        if (res.data.user.avatar) {
+          setAvatarPreview(res.data.user.avatar);
+        }
+        if (setUser) {
+          setUser(prev => {
+            const updated = { ...prev, ...res.data.user };
+            localStorage.setItem('user', JSON.stringify(updated));
+            return updated;
+          });
+        }
       }
       setFormData(prev => ({ ...prev, current_password: '', new_password: '' }));
     } catch (err) {
@@ -103,12 +152,15 @@ export default function Profile() {
     return matchesSearch && matchesRole;
   });
 
+  const resolvedAvatar = resolveAvatarSrc(avatarPreview);
+  const readinessScore = liveUser?.readiness_score ?? authUser?.readiness_score ?? 0;
+
   return (
-    <div className="min-h-full bg-slate-50 p-6 sm:p-8 font-sans text-slate-900 space-y-6">
+    <div className="min-h-full bg-slate-50 p-4 sm:p-6 lg:p-8 font-sans text-slate-900 space-y-6">
       {/* Top Banner */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight">
             Account Management &amp; Profile
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
@@ -117,10 +169,10 @@ export default function Profile() {
         </div>
 
         {isAdmin && (
-          <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-xl text-xs font-bold">
+          <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-xl text-xs font-bold w-full sm:w-auto">
             <button
               onClick={() => setActiveTab('my-profile')}
-              className={`px-3 py-1.5 rounded-lg transition cursor-pointer ${
+              className={`flex-1 sm:flex-none px-3 py-1.5 rounded-lg transition cursor-pointer ${
                 activeTab === 'my-profile' ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -128,7 +180,7 @@ export default function Profile() {
             </button>
             <button
               onClick={() => setActiveTab('member-roster')}
-              className={`px-3 py-1.5 rounded-lg transition cursor-pointer ${
+              className={`flex-1 sm:flex-none px-3 py-1.5 rounded-lg transition cursor-pointer ${
                 activeTab === 'member-roster' ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -142,7 +194,7 @@ export default function Profile() {
         <div className={`p-4 rounded-xl text-xs flex items-center gap-2 border ${
           feedback.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-800'
         }`}>
-          {feedback.type === 'success' ? <CheckCircle className="w-4 h-4 text-emerald-600" /> : <AlertCircle className="w-4 h-4 text-red-600" />}
+          {feedback.type === 'success' ? <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" /> : <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />}
           <span>{feedback.message}</span>
         </div>
       )}
@@ -152,7 +204,7 @@ export default function Profile() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
           {/* Left: Credential Form */}
-          <div className="lg:col-span-2 bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-6">
+          <div className="lg:col-span-2 bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-xs space-y-6">
             <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider border-b border-slate-100 pb-3">
               Profile Configuration
             </h2>
@@ -160,21 +212,22 @@ export default function Profile() {
             <form onSubmit={handleSubmitProfile} className="space-y-4 text-xs">
               {/* Avatar Upload */}
               <div className="flex items-center gap-4 pb-2">
-                <div className="relative">
-                  {avatarPreview ? (
+                <div className="relative shrink-0">
+                  {resolvedAvatar ? (
                     <img 
-                      src={avatarPreview.startsWith('blob:') || avatarPreview.startsWith('http') ? avatarPreview : `${API_BASE_URL}${avatarPreview}`}
+                      src={resolvedAvatar}
                       alt="Avatar Preview" 
                       className="w-16 h-16 rounded-full object-cover border-2 border-blue-600"
                     />
                   ) : (
                     <div className="w-16 h-16 rounded-full bg-blue-50 border-2 border-blue-600 flex items-center justify-center text-blue-600 font-black text-lg">
-                      {authUser?.username?.substring(0, 2).toUpperCase() || 'US'}
+                      {(liveUser?.username || authUser?.username || 'US').substring(0, 2).toUpperCase()}
                     </div>
                   )}
                   <label 
                     htmlFor="avatar-upload" 
                     className="absolute bottom-0 right-0 p-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full cursor-pointer shadow-xs transition"
+                    title="Upload profile photo"
                   >
                     <Camera className="w-3.5 h-3.5" />
                   </label>
@@ -187,8 +240,8 @@ export default function Profile() {
                   />
                 </div>
                 <div>
-                  <h3 className="font-bold text-slate-900 text-sm">{authUser?.username}</h3>
-                  <p className="text-slate-400 text-[11px]">JPG, PNG or GIF. Max size 2MB.</p>
+                  <h3 className="font-bold text-slate-900 text-sm">{liveUser?.username || authUser?.username}</h3>
+                  <p className="text-slate-400 text-[11px]">JPG, PNG or GIF. Max size 2MB. Click Save Profile to apply.</p>
                 </div>
               </div>
 
@@ -233,12 +286,20 @@ export default function Profile() {
                     <div className="relative">
                       <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-3" />
                       <input
-                        type="password"
+                        type={showCurrentPassword ? 'text' : 'password'}
                         value={formData.current_password}
                         onChange={e => setFormData({ ...formData, current_password: e.target.value })}
-                        placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-slate-900 focus:outline-none focus:border-blue-600"
+                        placeholder="••••••••"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-9 py-2 text-slate-900 focus:outline-none focus:border-blue-600"
                       />
+                      <button
+                        type="button"
+                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                        aria-label={showCurrentPassword ? 'Hide current password' : 'Show current password'}
+                        className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 focus:outline-none"
+                      >
+                        {showCurrentPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
                     </div>
                   </div>
 
@@ -247,12 +308,20 @@ export default function Profile() {
                     <div className="relative">
                       <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-3" />
                       <input
-                        type="password"
+                        type={showNewPassword ? 'text' : 'password'}
                         value={formData.new_password}
                         onChange={e => setFormData({ ...formData, new_password: e.target.value })}
                         placeholder="Min 6 characters"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-slate-900 focus:outline-none focus:border-blue-600"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-9 py-2 text-slate-900 focus:outline-none focus:border-blue-600"
                       />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        aria-label={showNewPassword ? 'Hide new password' : 'Show new password'}
+                        className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 focus:outline-none"
+                      >
+                        {showNewPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -262,7 +331,7 @@ export default function Profile() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition flex items-center gap-2 shadow-md shadow-blue-600/20 cursor-pointer"
+                  className="w-full sm:w-auto justify-center px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition flex items-center gap-2 shadow-md shadow-blue-600/20 cursor-pointer"
                 >
                   <Save className="w-3.5 h-3.5" />
                   <span>{loading ? 'Saving Changes...' : 'Save Profile'}</span>
@@ -273,7 +342,7 @@ export default function Profile() {
 
           {/* Right: Progress & Readiness Overview */}
           <div className="space-y-4">
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-xs space-y-4">
               <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
                 <ShieldCheck className="w-4 h-4 text-blue-600" />
                 <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
@@ -286,29 +355,39 @@ export default function Profile() {
                   Readiness Score
                 </span>
                 <span className="text-3xl font-black text-blue-600">
-                  {isAdmin ? 'Exempt (Admin)' : `${authUser?.readiness_score || 0}%`}
+                  {isAdmin ? 'Exempt (Admin)' : `${readinessScore}%`}
                 </span>
                 <p className="text-[10px] text-slate-500 pt-1 leading-relaxed">
                   {isAdmin 
                     ? 'Administrative accounts maintain governance oversight and do not require readiness scoring.' 
-                    : 'Evaluates your behavioral resilience across all learning modules and mock emails.'}
+                    : 'Evaluates your behavioral resilience across learning modules, inbox simulations, and certification exam.'}
                 </p>
               </div>
 
               {!isAdmin && (
-                <div className="space-y-2 pt-1 text-xs">
-                  <div className="flex justify-between items-center text-slate-600">
-                    <span className="flex items-center gap-1.5">
-                      <BookOpen className="w-3.5 h-3.5 text-blue-600" /> Module Progress
-                    </span>
-                    <strong>{stats?.completed_modules || 0} / {stats?.total_modules || 14}</strong>
+                <div className="space-y-3 pt-1 text-xs">
+                  <div>
+                    <div className="flex justify-between items-center text-slate-600 mb-1">
+                      <span className="flex items-center gap-1.5">
+                        <BookOpen className="w-3.5 h-3.5 text-blue-600" /> Module Progress
+                      </span>
+                      <strong>
+                        {stats?.completed_modules ?? 0} / {stats?.total_modules ?? 20} ({stats?.progress_percentage ?? 0}%)
+                      </strong>
+                    </div>
+                    <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-blue-600 rounded-full transition-all duration-500"
+                        style={{ width: `${Math.min(100, stats?.progress_percentage ?? 0)}%` }}
+                      />
+                    </div>
                   </div>
 
                   <div className="flex justify-between items-center text-slate-600">
                     <span className="flex items-center gap-1.5">
                       <Target className="w-3.5 h-3.5 text-amber-500" /> Simulation Accuracy
                     </span>
-                    <strong>{stats?.sim_accuracy || 0}%</strong>
+                    <strong>{stats?.sim_accuracy ?? 0}%</strong>
                   </div>
 
                   <div className="flex justify-between items-center text-slate-600">
@@ -328,7 +407,7 @@ export default function Profile() {
 
       {/* TAB 2: ADMIN MEMBER ROSTER */}
       {isAdmin && activeTab === 'member-roster' && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
+        <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-xs space-y-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 pb-4">
             <div>
               <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
@@ -337,7 +416,7 @@ export default function Profile() {
               <p className="text-xs text-slate-500 mt-0.5">Inspect user privileges, contact records, and readiness ratings.</p>
             </div>
 
-            <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
               <div className="relative flex-1 sm:w-64">
                 <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
                 <input
@@ -365,15 +444,15 @@ export default function Profile() {
             {filteredRoster.length > 0 ? (
               filteredRoster.map(u => (
                 <div key={u.id} className="py-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs border ${
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center font-black text-xs border ${
                       u.is_admin ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-slate-100 text-slate-700 border-slate-200'
                     }`}>
                       {u.username.substring(0, 2).toUpperCase()}
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <strong className="text-slate-900 font-bold">{u.username}</strong>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <strong className="text-slate-900 font-bold truncate">{u.username}</strong>
                         {u.is_self && (
                           <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded font-bold">
                             You
@@ -385,7 +464,7 @@ export default function Profile() {
                           {u.is_admin ? 'Administrator' : 'Learner'}
                         </span>
                       </div>
-                      <p className="text-slate-500 font-mono text-[11px] mt-0.5">
+                      <p className="text-slate-500 font-mono text-[11px] mt-0.5 break-all">
                         {u.email} &middot; Enrolled: {u.date_joined}
                       </p>
                     </div>

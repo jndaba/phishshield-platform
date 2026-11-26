@@ -1,5 +1,5 @@
 import React, { useState, useContext } from 'react';
-import { Shield, Key, Lock, User, ArrowRight } from 'lucide-react';
+import { Shield, Key, Lock, User, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
@@ -7,7 +7,9 @@ import { AuthContext } from '../context/AuthContext';
 export default function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [adminKey, setAdminKey] = useState('');
+  const [showAdminKey, setShowAdminKey] = useState(false);
   const [isAdminRole, setIsAdminRole] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -38,9 +40,9 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-[#102A36] flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-2xl p-8">
+      <div className="max-w-md w-full bg-white rounded-2xl shadow-2xl p-6 sm:p-8">
         <div className="flex items-center gap-3 mb-6">
-          <div className="p-2.5 bg-teal-50 rounded-xl">
+          <div className="p-2.5 bg-teal-50 rounded-xl shrink-0">
             <Shield className="w-8 h-8 text-teal-600" />
           </div>
           <div>
@@ -79,13 +81,21 @@ export default function Login() {
             <div className="relative">
               <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-teal-500"
+                className="w-full pl-9 pr-10 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-teal-500"
                 placeholder="••••••••"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 focus:outline-none"
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
           </div>
 
@@ -107,12 +117,20 @@ export default function Login() {
               <div className="relative">
                 <Key className="w-4 h-4 text-amber-500 absolute left-3 top-2.5" />
                 <input
-                  type="password"
+                  type={showAdminKey ? 'text' : 'password'}
                   value={adminKey}
                   onChange={(e) => setAdminKey(e.target.value)}
                   placeholder="Enter PSH_ADMIN_..."
-                  className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-teal-500"
+                  className="w-full pl-9 pr-9 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-teal-500"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowAdminKey(!showAdminKey)}
+                  aria-label={showAdminKey ? 'Hide admin key' : 'Show admin key'}
+                  className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600 focus:outline-none"
+                >
+                  {showAdminKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
             </div>
           )}

@@ -15,8 +15,17 @@ import {
   Info
 } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
+import { API_BASE_URL } from '../main';
 
-export default function Sidebar() {
+function resolveAvatarSrc(src) {
+  if (!src) return null;
+  if (src.startsWith('blob:') || src.startsWith('data:') || src.startsWith('http')) {
+    return src;
+  }
+  return `${API_BASE_URL}${src}`;
+}
+
+export default function LearnerSidebar() {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
 
@@ -37,6 +46,7 @@ export default function Sidebar() {
 
   const readinessScore = user?.readiness_score || 0;
   const isQualified = readinessScore >= 70;
+  const resolvedAvatar = resolveAvatarSrc(user?.avatar);
 
   return (
     <aside className="w-64 bg-blue-950 text-slate-100 flex flex-col justify-between shrink-0 select-none shadow-xl h-screen sticky top-0 border-r border-blue-900">
@@ -118,7 +128,7 @@ export default function Sidebar() {
             <div className="flex items-start gap-1.5 text-[10px] text-blue-200/80 leading-relaxed pt-0.5">
               <Info className="w-3.5 h-3.5 text-blue-400 shrink-0 mt-0.5" />
               <p>
-                Calculated from module completions and simulation verdicts. A score of <strong>70%+</strong> qualifies you for certificate issuance.
+                Calculated from module completions, simulation verdicts, and assessment score. A score of <strong>70%+</strong> indicates strong readiness.
               </p>
             </div>
           </div>
@@ -129,9 +139,17 @@ export default function Sidebar() {
       <div className="p-4 border-t border-blue-900/60 bg-blue-900/20">
         <div className="flex items-center justify-between">
           <Link to="/profile" className="flex items-center gap-3 truncate pr-2 hover:opacity-90 transition">
-            <div className="w-8 h-8 rounded-lg bg-blue-800 text-blue-200 flex items-center justify-center font-bold text-xs shrink-0 border border-blue-700">
-              {user?.username?.charAt(0).toUpperCase() || 'U'}
-            </div>
+            {resolvedAvatar ? (
+              <img 
+                src={resolvedAvatar} 
+                alt={user?.username} 
+                className="w-8 h-8 rounded-full object-cover border border-blue-700 shrink-0 shadow-xs"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-lg bg-blue-800 text-blue-200 flex items-center justify-center font-bold text-xs shrink-0 border border-blue-700">
+                {user?.username?.charAt(0).toUpperCase() || 'U'}
+              </div>
+            )}
             <div className="truncate">
               <p className="text-xs font-bold text-white truncate leading-tight">{user?.username}</p>
               <p className="text-[10px] text-blue-300 font-semibold tracking-wide">

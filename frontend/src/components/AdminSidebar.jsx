@@ -18,6 +18,14 @@ import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 import { API_BASE_URL } from '../main';
 
+function resolveAvatarSrc(src) {
+  if (!src) return null;
+  if (src.startsWith('blob:') || src.startsWith('data:') || src.startsWith('http')) {
+    return src;
+  }
+  return `${API_BASE_URL}${src}`;
+}
+
 export default function AdminSidebar() {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
@@ -53,6 +61,8 @@ export default function AdminSidebar() {
     { to: '/admin/users', label: 'Member Roster', icon: <Users className="w-4 h-4" /> },
     { to: '/profile', label: 'Profile', icon: <UserCheck className="w-4 h-4" /> },
   ];
+
+  const resolvedAvatar = resolveAvatarSrc(user?.avatar);
 
   return (
     <aside className="w-64 bg-blue-950 text-blue-50 flex flex-col justify-between border-r border-blue-900 shrink-0 h-screen sticky top-0 shadow-2xl">
@@ -130,9 +140,9 @@ export default function AdminSidebar() {
       {/* User Session Footer */}
       <div className="p-4 border-t border-blue-900 flex items-center justify-between bg-blue-950 hover:bg-blue-900 transition">
         <Link to="/profile" className="flex items-center gap-2.5 truncate hover:opacity-80 transition cursor-pointer">
-          {user?.avatar ? (
+          {resolvedAvatar ? (
             <img 
-              src={user.avatar.startsWith('http') ? user.avatar : `${API_BASE_URL}${user.avatar}`} 
+              src={resolvedAvatar} 
               alt={user.username} 
               className="w-8 h-8 rounded-full object-cover border border-blue-800 shrink-0 shadow-xs"
             />
