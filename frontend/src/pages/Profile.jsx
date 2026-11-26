@@ -14,7 +14,9 @@ import {
   CheckCircle, 
   AlertCircle,
   Eye,
-  EyeOff
+  EyeOff,
+  Maximize2,
+  X
 } from 'lucide-react';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
@@ -38,6 +40,9 @@ export default function Profile() {
   const [rosterRoleFilter, setRosterRoleFilter] = useState('all');
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState({ type: '', message: '' });
+
+  // Lightbox expand state
+  const [isAvatarExpanded, setIsAvatarExpanded] = useState(false);
 
   // Password visibility toggles
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
@@ -86,6 +91,15 @@ export default function Profile() {
         .catch(() => {});
     }
   }, [isAdmin]);
+
+  useEffect(() => {
+    if (!isAvatarExpanded) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setIsAvatarExpanded(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isAvatarExpanded]);
 
   const handleAvatarChange = (e) => {
     const file = e.target.files[0];
@@ -157,6 +171,49 @@ export default function Profile() {
 
   return (
     <div className="min-h-full bg-slate-50 p-4 sm:p-6 lg:p-8 font-sans text-slate-900 space-y-6">
+      {/* Fullscreen Avatar Preview Lightbox */}
+      {isAvatarExpanded && (
+        <div
+          onClick={() => setIsAvatarExpanded(false)}
+          className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative max-w-md w-full bg-white rounded-3xl p-5 shadow-2xl border border-slate-200 flex flex-col items-center gap-4"
+          >
+            <button
+              type="button"
+              onClick={() => setIsAvatarExpanded(false)}
+              aria-label="Close expanded profile photo"
+              className="absolute top-3.5 right-3.5 p-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            {resolvedAvatar ? (
+              <img
+                src={resolvedAvatar}
+                alt={liveUser?.username || authUser?.username || 'Profile'}
+                className="w-64 h-64 sm:w-80 sm:h-80 rounded-2xl object-cover border-2 border-blue-600 shadow-md"
+              />
+            ) : (
+              <div className="w-64 h-64 sm:w-80 sm:h-80 rounded-2xl bg-blue-50 border-2 border-blue-600 flex items-center justify-center text-blue-600 font-black text-6xl shadow-inner">
+                {(liveUser?.username || authUser?.username || 'US').substring(0, 2).toUpperCase()}
+              </div>
+            )}
+
+            <div className="text-center">
+              <h3 className="font-black text-slate-900 text-base">
+                {liveUser?.username || authUser?.username}
+              </h3>
+              <p className="text-xs text-slate-500">
+                {liveUser?.email || authUser?.email}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Top Banner */}
       <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -210,23 +267,34 @@ export default function Profile() {
             </h2>
 
             <form onSubmit={handleSubmitProfile} className="space-y-4 text-xs">
-              {/* Avatar Upload */}
+              {/* Avatar Upload + Click to Expand */}
               <div className="flex items-center gap-4 pb-2">
-                <div className="relative shrink-0">
-                  {resolvedAvatar ? (
-                    <img 
-                      src={resolvedAvatar}
-                      alt="Avatar Preview" 
-                      className="w-16 h-16 rounded-full object-cover border-2 border-blue-600"
-                    />
-                  ) : (
-                    <div className="w-16 h-16 rounded-full bg-blue-50 border-2 border-blue-600 flex items-center justify-center text-blue-600 font-black text-lg">
-                      {(liveUser?.username || authUser?.username || 'US').substring(0, 2).toUpperCase()}
-                    </div>
-                  )}
+                <div className="relative shrink-0 group">
+                  <button
+                    type="button"
+                    onClick={() => setIsAvatarExpanded(true)}
+                    title="Click to expand profile picture"
+                    className="relative block rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-zoom-in"
+                  >
+                    {resolvedAvatar ? (
+                      <img 
+                        src={resolvedAvatar}
+                        alt="Avatar Preview" 
+                        className="w-16 h-16 rounded-full object-cover border-2 border-blue-600 group-hover:brightness-90 transition"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 rounded-full bg-blue-50 border-2 border-blue-600 flex items-center justify-center text-blue-600 font-black text-lg group-hover:bg-blue-100 transition">
+                        {(liveUser?.username || authUser?.username || 'US').substring(0, 2).toUpperCase()}
+                      </div>
+                    )}
+                    <span className="inset-0 rounded-full bg-slate-900/35 opacity-0 group-hover:opacity-100 transition flex items-center justify-center absolute pointer-events-none">
+                      <Maximize2 className="w-4 h-4 text-white" />
+                    </span>
+                  </button>
+
                   <label 
                     htmlFor="avatar-upload" 
-                    className="absolute bottom-0 right-0 p-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full cursor-pointer shadow-xs transition"
+                    className="absolute bottom-0 right-0 p-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full cursor-pointer shadow-xs transition z-10"
                     title="Upload profile photo"
                   >
                     <Camera className="w-3.5 h-3.5" />
@@ -241,7 +309,9 @@ export default function Profile() {
                 </div>
                 <div>
                   <h3 className="font-bold text-slate-900 text-sm">{liveUser?.username || authUser?.username}</h3>
-                  <p className="text-slate-400 text-[11px]">JPG, PNG or GIF. Max size 2MB. Click Save Profile to apply.</p>
+                  <p className="text-slate-400 text-[11px]">
+                    Click photo to expand · JPG, PNG or GIF (max 2MB).
+                  </p>
                 </div>
               </div>
 

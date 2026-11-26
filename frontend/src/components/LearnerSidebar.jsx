@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { 
   ShieldAlert, 
@@ -14,6 +14,7 @@ import {
   Target,
   Info
 } from 'lucide-react';
+import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 import { API_BASE_URL } from '../main';
 
@@ -26,8 +27,41 @@ function resolveAvatarSrc(src) {
 }
 
 export default function LearnerSidebar() {
-  const { user, logout } = useContext(AuthContext);
+  const { user, setUser, logout } = useContext(AuthContext);
   const navigate = useNavigate();
+  const [liveScore, setLiveScore] = useState(user?.readiness_score ?? 0);
+
+  useEffect(() => {
+    if (user?.readiness_score !== undefined) {
+      setLiveScore(user.readiness_score);
+    }
+  }, [user?.readiness_score]);
+
+  useEffect(() => {
+    let isMounted = true;
+    axios.get('/api/auth/user-stats/')
+      .then((res) => {
+        if (!isMounted || !res.data?.user) return;
+        const serverScore = res.data.user.readiness_score ?? 0;
+        setLiveScore(serverScore);
+        if (setUser) {
+          setUser((prev) => {
+            if (!prev) return prev;
+            if (prev.readiness_score === serverScore && prev.avatar === res.data.user.avatar) {
+              return prev;
+            }
+            const updated = { ...prev, ...res.data.user };
+            localStorage.setItem('user', JSON.stringify(updated));
+            return updated;
+          });
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -44,7 +78,7 @@ export default function LearnerSidebar() {
     { label: 'My Profile', path: '/profile', icon: UserCheck },
   ];
 
-  const readinessScore = user?.readiness_score || 0;
+  const readinessScore = liveScore;
   const isQualified = readinessScore >= 70;
   const resolvedAvatar = resolveAvatarSrc(user?.avatar);
 
@@ -99,7 +133,7 @@ export default function LearnerSidebar() {
             })}
           </nav>
 
-          {/* Readiness Score Card with Brief Explanation */}
+          {/* Readiness Score Card */}
           <div className="p-3.5 bg-blue-900/40 rounded-xl border border-blue-800/80 space-y-2.5">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-bold uppercase tracking-wider text-blue-300 flex items-center gap-1.5">
@@ -128,7 +162,7 @@ export default function LearnerSidebar() {
             <div className="flex items-start gap-1.5 text-[10px] text-blue-200/80 leading-relaxed pt-0.5">
               <Info className="w-3.5 h-3.5 text-blue-400 shrink-0 mt-0.5" />
               <p>
-                Calculated from module completions, simulation verdicts, and assessment score. A score of <strong>70%+</strong> indicates strong readiness.
+                Calculated from module completions (40%), simulation verdicts (35%), and assessment score (25%). A score of <strong>70%+</strong> indicates strong readiness.
               </p>
             </div>
           </div>
