@@ -16,7 +16,7 @@ export default function ForgotPassword() {
     setLoading(true);
     setError('');
     try {
-      const res = await axios.post('/api/auth/password-reset/', { email });
+      const res = await axios.post('/api/auth/password-reset/request/', { email: email.trim() });
       setMessage(res.data?.message || 'Password recovery link generated.');
       setResetToken(res.data?.token || '');
       setSubmitted(true);
@@ -78,7 +78,7 @@ export default function ForgotPassword() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl text-sm transition shadow-md"
+              className="w-full py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl text-sm transition shadow-md cursor-pointer"
             >
               {loading ? 'Generating link...' : 'Generate Reset Link'}
             </button>
