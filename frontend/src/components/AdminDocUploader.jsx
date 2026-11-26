@@ -33,7 +33,7 @@ export default function AdminDocUploader() {
 
     setUploading(true);
     try {
-      await axios.post("http://127.0.0.1:8000/api/lms/modules/", formData);
+      await axios.post("/api/lms/modules/", formData);
       alert("Module uploaded successfully!");
       setFile(null);
       setTitle('');

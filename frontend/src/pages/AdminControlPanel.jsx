@@ -45,10 +45,10 @@ export default function AdminControlPanel() {
   const fetchEverything = async () => {
     try {
       const [uRes, sRes, mRes, rRes] = await Promise.all([
-        axios.get('http://127.0.0.1:8000/api/auth/manage/users/'),
-        axios.get('http://127.0.0.1:8000/api/simulation/emails/'),
-        axios.get('http://127.0.0.1:8000/api/lms/modules/'),
-        axios.get('http://127.0.0.1:8000/api/recovery/guides/')
+        axios.get('/api/auth/manage/users/'),
+        axios.get('/api/simulation/emails/'),
+        axios.get('/api/lms/modules/'),
+        axios.get('/api/recovery/guides/')
       ]);
       setUsersList(uRes.data);
       setSimulations(sRes.data);
@@ -72,7 +72,7 @@ export default function AdminControlPanel() {
   const handleDeleteUser = async (targetId, targetName) => {
     if (!window.confirm(`PERMANENT ACTION: Delete account '${targetName}' and all their scores, activity logs, and submissions?`)) return;
     try {
-      await axios.delete(`http://127.0.0.1:8000/api/auth/manage/users/${targetId}/`);
+      await axios.delete(`/api/auth/manage/users/${targetId}/`);
       notify(`Account '${targetName}' permanently deleted.`);
       fetchEverything();
     } catch (err) {
@@ -84,7 +84,7 @@ export default function AdminControlPanel() {
     const actionName = currentIsAdmin ? 'demote to Learner' : 'promote to Platform Administrator';
     if (!window.confirm(`Are you sure you want to ${actionName} for '${targetName}'?`)) return;
     try {
-      await axios.patch(`http://127.0.0.1:8000/api/auth/manage/users/${targetId}/`, {
+      await axios.patch(`/api/auth/manage/users/${targetId}/`, {
         is_admin: !currentIsAdmin
       });
       notify(`Role for '${targetName}' updated successfully.`);
@@ -97,7 +97,7 @@ export default function AdminControlPanel() {
   const handleResetUserScore = async (targetId, targetName) => {
     if (!window.confirm(`Reset training readiness score & simulation history to 0 for '${targetName}'?`)) return;
     try {
-      await axios.patch(`http://127.0.0.1:8000/api/auth/manage/users/${targetId}/`, {
+      await axios.patch(`/api/auth/manage/users/${targetId}/`, {
         reset_score: true
       });
       notify(`Progress reset to 0% for '${targetName}'.`);
@@ -111,7 +111,7 @@ export default function AdminControlPanel() {
   const handleCreateSimulation = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('http://127.0.0.1:8000/api/simulation/emails/', newSimData);
+      await axios.post('/api/simulation/emails/', newSimData);
       setShowSimModal(false);
       setNewSimData({
         sender_name: '',
@@ -132,7 +132,7 @@ export default function AdminControlPanel() {
   const handleDeleteSimulation = async (id) => {
     if (!window.confirm('Delete this simulation email scenario?')) return;
     try {
-      await axios.delete(`http://127.0.0.1:8000/api/simulation/emails/${id}/`);
+      await axios.delete(`/api/simulation/emails/${id}/`);
       notify('Simulation scenario removed.');
       fetchEverything();
     } catch (err) {
@@ -144,7 +144,7 @@ export default function AdminControlPanel() {
   const handleDeleteModule = async (id, title) => {
     if (!window.confirm(`Delete module '${title}' from curriculum?`)) return;
     try {
-      await axios.delete(`http://127.0.0.1:8000/api/lms/modules/${id}/`);
+      await axios.delete(`/api/lms/modules/${id}/`);
       notify(`Module deleted.`);
       fetchEverything();
     } catch (err) {

@@ -24,7 +24,7 @@ export default function MailSandbox() {
 
   const fetchEmails = async () => {
     try {
-      const res = await axios.get('http://127.0.0.1:8000/api/simulation/emails/');
+      const res = await axios.get('/api/simulation/emails/');
       setEmails(res.data);
       if (res.data.length > 0 && !selectedEmail) {
         setSelectedEmail(res.data[0]);
@@ -44,7 +44,7 @@ export default function MailSandbox() {
     if (!selectedEmail) return;
 
     try {
-      const res = await axios.post(`http://127.0.0.1:8000/api/simulation/emails/${selectedEmail.id}/attempt/`, {
+      const res = await axios.post(`/api/simulation/emails/${selectedEmail.id}/attempt/`, {
         action: actionType,
         time_taken: 15
       });
@@ -64,7 +64,7 @@ export default function MailSandbox() {
   const handleCreateEmail = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('http://127.0.0.1:8000/api/simulation/emails/', formData);
+      await axios.post('/api/simulation/emails/', formData);
       setShowCreateModal(false);
       setFormData({
         sender_name: '',
@@ -86,7 +86,7 @@ export default function MailSandbox() {
     if (!window.confirm("Are you sure you want to remove this scenario?")) return;
 
     try {
-      await axios.delete(`http://127.0.0.1:8000/api/simulation/emails/${id}/`);
+      await axios.delete(`/api/simulation/emails/${id}/`);
       fetchEmails();
       if (selectedEmail?.id === id) setSelectedEmail(null);
     } catch (err) {

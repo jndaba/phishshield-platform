@@ -3,6 +3,7 @@ import { Award, Download, Lock, CheckCircle2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
+import { API_BASE_URL } from '../main';
 
 export default function Certificates() {
   const { user } = useContext(AuthContext);
@@ -13,7 +14,7 @@ export default function Certificates() {
   useEffect(() => {
     const fetchProgress = async () => {
       try {
-        const res = await axios.get('http://127.0.0.1:8000/api/auth/user-stats/');
+        const res = await axios.get('/api/auth/user-stats/');
         setStats(res.data.stats);
       } catch (err) {
         console.error("Failed to load certificate eligibility", err);
@@ -32,7 +33,7 @@ export default function Certificates() {
       return;
     }
     window.open(
-      `http://127.0.0.1:8000/api/simulation/certificate/download/?name=${encodeURIComponent(candidateName)}`,
+      `${API_BASE_URL}/api/simulation/certificate/download/?name=${encodeURIComponent(candidateName)}`,
       '_blank'
     );
   };

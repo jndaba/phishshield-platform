@@ -22,7 +22,7 @@ export default function SimulationInbox() {
   const fetchInbox = async () => {
     setLoading(true);
     try {
-      const res = await axios.get('http://127.0.0.1:8000/api/simulation/inbox/');
+      const res = await axios.get('/api/simulation/inbox/');
       const data = res.data?.scenarios || [];
       setScenarios(data);
       setStats(res.data?.stats || { total: 10, completed: 0, correct: 0, accuracy: 0 });
@@ -81,7 +81,7 @@ export default function SimulationInbox() {
 
     try {
       const res = await axios.post(
-        `http://127.0.0.1:8000/api/simulation/inbox/${activeScenario.id}/verdict/`,
+        `/api/simulation/inbox/${activeScenario.id}/verdict/`,
         { is_phishing: isPhishingVerdict }
       );
 
@@ -102,7 +102,7 @@ export default function SimulationInbox() {
         })
       );
 
-      const statsRes = await axios.get('http://127.0.0.1:8000/api/simulation/inbox/');
+      const statsRes = await axios.get('/api/simulation/inbox/');
       setStats(statsRes.data?.stats || stats);
     } catch (err) {
       console.error('Failed to submit scenario decision', err);

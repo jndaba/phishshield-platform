@@ -44,7 +44,7 @@ export default function SupportChat() {
     try {
       if (isAdmin) {
         // Admin fetches learner directory
-        const res = await axios.get('http://127.0.0.1:8000/api/auth/admin-metrics/');
+        const res = await axios.get('/api/auth/admin-metrics/');
         if (res.data?.learners) {
           setCounterpartyList(res.data.learners);
           if (!activeCounterparty && res.data.learners.length > 0) {
@@ -53,7 +53,7 @@ export default function SupportChat() {
         }
       } else {
         // Learner fetches active platform administrators
-        const res = await axios.get('http://127.0.0.1:8000/api/auth/admins/active/');
+        const res = await axios.get('/api/auth/admins/active/');
         if (Array.isArray(res.data)) {
           setCounterpartyList(res.data);
           if (!activeCounterparty && res.data.length > 0) {
@@ -72,7 +72,7 @@ export default function SupportChat() {
   const fetchThreadMessages = async (counterpartyId) => {
     if (!counterpartyId) return;
     try {
-      const res = await axios.get(`http://127.0.0.1:8000/api/chat/?target_user_id=${counterpartyId}`);
+      const res = await axios.get(`/api/chat/?target_user_id=${counterpartyId}`);
       setMessages(res.data?.messages || []);
       if (res.data?.active_counterparty && !activeCounterparty) {
         setActiveCounterparty(res.data.active_counterparty);
@@ -124,7 +124,7 @@ export default function SupportChat() {
         subject: `Inquiry regarding ${selectedCategory.replace('_', ' ')}`
       };
 
-      const res = await axios.post('http://127.0.0.1:8000/api/chat/', payload);
+      const res = await axios.post('/api/chat/', payload);
       setMessages((prev) => [...prev, res.data]);
       setInputMessage('');
       scrollToBottom();

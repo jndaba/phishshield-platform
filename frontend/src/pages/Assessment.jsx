@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { HelpCircle, Award, CheckCircle, XCircle, Download, RotateCcw, ShieldCheck } from 'lucide-react';
 import axios from 'axios';
+import { API_BASE_URL } from '../main';
 
 export default function Assessment() {
   const [questions, setQuestions] = useState([]);
@@ -11,7 +12,7 @@ export default function Assessment() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    axios.get('http://127.0.0.1:8000/api/simulation/quiz/questions/')
+    axios.get('/api/simulation/quiz/questions/')
       .then(res => setQuestions(res.data))
       .catch(err => console.error("Error loading quiz questions", err))
       .finally(() => setLoading(false));
@@ -30,7 +31,7 @@ export default function Assessment() {
 
     setSubmitting(true);
     try {
-      const response = await axios.post('http://127.0.0.1:8000/api/simulation/quiz/submit/', { answers });
+      const response = await axios.post('/api/simulation/quiz/submit/', { answers });
       setResult(response.data);
     } catch (err) {
       console.error(err);
@@ -42,7 +43,7 @@ export default function Assessment() {
 
   const handleDownloadCert = () => {
     const name = userName.trim() || "Student Learner";
-    window.open(`http://127.0.0.1:8000/api/simulation/certificate/download/?name=${encodeURIComponent(name)}`, '_blank');
+    window.open(`${API_BASE_URL}/api/simulation/certificate/download/?name=${encodeURIComponent(name)}`, '_blank');
   };
 
   // Safe parser to prevent crashes if backend returns options as a JSON string

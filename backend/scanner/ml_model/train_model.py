@@ -1,5 +1,6 @@
 import os
 import re
+import gc
 import time
 import json
 from datetime import datetime
@@ -58,7 +59,9 @@ REPORT_PATH = os.path.join(
 
 TEST_SIZE = 0.20
 RANDOM_STATE = 42
-NUMBER_OF_TREES = 200
+NUMBER_OF_TREES = 100
+MAX_TREE_DEPTH = 22
+MIN_SAMPLES_LEAF = 5
 
 # Must match PHISHING_THRESHOLD in predict.py.
 PHISHING_THRESHOLD = 0.50
@@ -297,6 +300,7 @@ def build_feature_matrix(df, feature_names):
     X = pd.DataFrame(
         feature_matrix,
         columns=feature_names,
+        dtype="float32",
     )
 
     y = df["target"].reset_index(drop=True)
@@ -553,6 +557,7 @@ def main():
 
     # Step 1: Load and clean the dataset.
     df = load_and_clean_dataset()
+    dataset_rows_used = int(len(df))
 
     # Step 2: Verify feature definitions.
     feature_names = get_feature_names()
@@ -568,8 +573,10 @@ def main():
             "Duplicate feature names detected."
         )
 
-    # Step 3: Extract features.
+    # Step 3: Extract features and free raw dataframe.
     X, y = build_feature_matrix(df, feature_names)
+    del df
+    gc.collect()
 
     # Step 4: Split into training and test sets.
     print("\n" + "=" * 70)
@@ -584,25 +591,33 @@ def main():
         stratify=y,
     )
 
-    print(f"Training samples: {len(X_train):,}")
-    print(f"Testing samples : {len(X_test):,}")
+    del X, y
+    gc.collect()
 
-    # Step 5: Configure the Random Forest.
+    training_samples_count = int(len(X_train))
+    testing_samples_count = int(len(X_test))
+
+    print(f"Training samples: {training_samples_count:,}")
+    print(f"Testing samples : {testing_samples_count:,}")
+
+    # Step 5: Configure the Random Forest (memory-safe parameters).
     print("\n" + "=" * 70)
     print("TRAINING RANDOM FOREST")
     print("=" * 70)
 
     print("Algorithm: Random Forest")
     print(f"Number of trees: {NUMBER_OF_TREES}")
+    print(f"Max depth: {MAX_TREE_DEPTH}")
     print("Class weight: None")
     print(f"Random state: {RANDOM_STATE}")
-    print("Parallel processing: enabled")
+    print("Parallel processing: 2 workers")
 
     model = RandomForestClassifier(
         n_estimators=NUMBER_OF_TREES,
-        max_depth=None,
+        max_depth=MAX_TREE_DEPTH,
+        min_samples_leaf=MIN_SAMPLES_LEAF,
         random_state=RANDOM_STATE,
-        n_jobs=-1,
+        n_jobs=2,
         class_weight=None,
     )
 
@@ -618,12 +633,20 @@ def main():
         f"{time.time() - training_start:.2f} seconds."
     )
 
+    # Free training split before evaluation to conserve RAM.
+    del X_train, y_train
+    gc.collect()
+
     # Step 7: Evaluate on held-out test data.
     metrics = evaluate_model(
         model,
         X_test,
         y_test,
     )
+
+    # Free test split before saving and reloading the model.
+    del X_test, y_test
+    gc.collect()
 
     # Step 8: Display feature importance.
     importance_df = display_feature_importance(
@@ -632,7 +655,6 @@ def main():
     )
 
     # Step 9: Save to a temporary file first.
-    # Do not replace the current model until training succeeds.
     print("\n" + "=" * 70)
     print("SAVING MODEL")
     print("=" * 70)
@@ -642,6 +664,7 @@ def main():
         "threshold": PHISHING_THRESHOLD,
         "algorithm": "RandomForestClassifier",
         "n_estimators": NUMBER_OF_TREES,
+        "max_depth": MAX_TREE_DEPTH,
         "random_state": RANDOM_STATE,
         "training_date": datetime.now().isoformat(timespec="seconds"),
     }
@@ -653,7 +676,12 @@ def main():
                 "metadata": model_metadata,
             },
             TEMP_MODEL_PATH,
+            compress=3,
         )
+
+        # Release in-memory model before reloading for validation.
+        del model
+        gc.collect()
 
         # Verify that the temporary model can be loaded.
         saved_object = joblib.load(TEMP_MODEL_PATH)
@@ -674,6 +702,9 @@ def main():
                 "Saved model feature count is incorrect."
             )
 
+        del loaded_model, saved_object
+        gc.collect()
+
         # Replace the current model only after validation.
         os.replace(TEMP_MODEL_PATH, MODEL_PATH)
 
@@ -688,9 +719,9 @@ def main():
     report = {
         "training_date": datetime.now().isoformat(timespec="seconds"),
         "dataset_path": DATASET_PATH,
-        "dataset_rows_used": int(len(df)),
-        "training_samples": int(len(X_train)),
-        "testing_samples": int(len(X_test)),
+        "dataset_rows_used": dataset_rows_used,
+        "training_samples": training_samples_count,
+        "testing_samples": testing_samples_count,
         "feature_count": int(len(feature_names)),
         "feature_names": feature_names,
         "model": model_metadata,
@@ -716,10 +747,10 @@ def main():
     print("TRAINING SUMMARY")
     print("=" * 70)
 
-    print(f"Dataset rows used: {len(df):,}")
+    print(f"Dataset rows used: {dataset_rows_used:,}")
     print(f"Number of features: {len(feature_names)}")
-    print(f"Training samples: {len(X_train):,}")
-    print(f"Testing samples: {len(X_test):,}")
+    print(f"Training samples: {training_samples_count:,}")
+    print(f"Testing samples: {testing_samples_count:,}")
     print(f"Accuracy: {metrics['accuracy']:.4f}")
     print(f"Precision: {metrics['precision']:.4f}")
     print(f"Recall: {metrics['recall']:.4f}")
@@ -743,4 +774,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

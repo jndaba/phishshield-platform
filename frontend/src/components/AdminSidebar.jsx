@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
+import { API_BASE_URL } from '../main';
 
 export default function AdminSidebar() {
   const { user, logout } = useContext(AuthContext);
@@ -30,7 +31,7 @@ export default function AdminSidebar() {
   useEffect(() => {
     const fetchUnreadCount = async () => {
       try {
-        const res = await axios.get('http://127.0.0.1:8000/api/chat/unread-count/');
+        const res = await axios.get('/api/chat/unread-count/');
         setUnreadCount(res.data?.unread_count ?? res.data?.total_unread ?? 0);
       } catch {
         setUnreadCount(0);
@@ -131,7 +132,7 @@ export default function AdminSidebar() {
         <Link to="/profile" className="flex items-center gap-2.5 truncate hover:opacity-80 transition cursor-pointer">
           {user?.avatar ? (
             <img 
-              src={user.avatar.startsWith('http') ? user.avatar : `http://127.0.0.1:8000${user.avatar}`} 
+              src={user.avatar.startsWith('http') ? user.avatar : `${API_BASE_URL}${user.avatar}`} 
               alt={user.username} 
               className="w-8 h-8 rounded-full object-cover border border-blue-800 shrink-0 shadow-xs"
             />

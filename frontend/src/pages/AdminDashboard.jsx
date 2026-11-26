@@ -34,10 +34,10 @@ export default function AdminDashboard() {
   const fetchAdminData = async () => {
     try {
       const [mRes, modRes, simRes, unreadRes] = await Promise.all([
-        axios.get('http://127.0.0.1:8000/api/auth/admin-metrics/'),
-        axios.get('http://127.0.0.1:8000/api/lms/modules/'),
-        axios.get('http://127.0.0.1:8000/api/simulation/inbox/'),
-        axios.get('http://127.0.0.1:8000/api/chat/unread-count/').catch(() => ({ data: { unread_count: 0 } }))
+        axios.get('/api/auth/admin-metrics/'),
+        axios.get('/api/lms/modules/'),
+        axios.get('/api/simulation/inbox/'),
+        axios.get('/api/chat/unread-count/').catch(() => ({ data: { unread_count: 0 } }))
       ]);
       
       setMetrics(mRes.data);
@@ -64,7 +64,7 @@ export default function AdminDashboard() {
   const handleDeleteModule = async (id) => {
     if (!window.confirm("Delete this module from the curriculum?")) return;
     try {
-      await axios.delete(`http://127.0.0.1:8000/api/lms/modules/${id}/`);
+      await axios.delete(`/api/lms/modules/${id}/`);
       fetchAdminData();
     } catch (err) {
       alert("Failed to delete module.");
@@ -74,7 +74,7 @@ export default function AdminDashboard() {
   const handleDeleteSimulation = async (id) => {
     if (!window.confirm("Delete this mock email scenario?")) return;
     try {
-      await axios.delete(`http://127.0.0.1:8000/api/simulation/emails/${id}/`);
+      await axios.delete(`/api/simulation/emails/${id}/`);
       fetchAdminData();
     } catch (err) {
       alert("Failed to delete simulation email.");
@@ -88,7 +88,7 @@ export default function AdminDashboard() {
     }
     setResetting(true);
     try {
-      await axios.patch(`http://127.0.0.1:8000/api/auth/manage/users/${learner.id}/`, {
+      await axios.patch(`/api/auth/manage/users/${learner.id}/`, {
         reset_score: true
       });
       alert(`Readiness score and progress for ${learner.username} reset to 0%.`);

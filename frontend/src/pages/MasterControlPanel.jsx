@@ -97,7 +97,7 @@ export default function MasterControlPanel() {
   // 1. Data Fetchers
   const fetchUsers = async () => {
     try {
-      const res = await axios.get('http://127.0.0.1:8000/api/auth/manage/users/');
+      const res = await axios.get('/api/auth/manage/users/');
       setUsersList(res.data || []);
     } catch (e) {
       console.error(e);
@@ -106,7 +106,7 @@ export default function MasterControlPanel() {
 
   const fetchModules = async () => {
     try {
-      const res = await axios.get('http://127.0.0.1:8000/api/lms/modules/');
+      const res = await axios.get('/api/lms/modules/');
       setModulesList(res.data || []);
     } catch (e) {
       console.error(e);
@@ -115,7 +115,7 @@ export default function MasterControlPanel() {
 
   const fetchRunbooks = async () => {
     try {
-      const res = await axios.get('http://127.0.0.1:8000/api/lms/incident-guides/');
+      const res = await axios.get('/api/lms/incident-guides/');
       setRunbooksList(res.data || []);
     } catch (e) {
       console.error(e);
@@ -124,7 +124,7 @@ export default function MasterControlPanel() {
 
   const fetchQuestions = async () => {
     try {
-      const res = await axios.get('http://127.0.0.1:8000/api/simulation/quiz/manage/questions/');
+      const res = await axios.get('/api/simulation/quiz/manage/questions/');
       setQuestionsList(res.data || []);
     } catch (e) {
       console.error(e);
@@ -133,7 +133,7 @@ export default function MasterControlPanel() {
 
   const fetchScenarios = async () => {
     try {
-      const res = await axios.get('http://127.0.0.1:8000/api/simulation/emails/');
+      const res = await axios.get('/api/simulation/emails/');
       setScenariosList(res.data || []);
     } catch (e) {
       console.error(e);
@@ -142,7 +142,7 @@ export default function MasterControlPanel() {
 
   const fetchContacts = async () => {
     try {
-      const res = await axios.get('http://127.0.0.1:8000/api/auth/contact/');
+      const res = await axios.get('/api/auth/contact/');
       setContactsList(res.data || []);
     } catch (e) {
       console.error(e);
@@ -171,7 +171,7 @@ export default function MasterControlPanel() {
       return;
     }
     try {
-      await axios.patch(`http://127.0.0.1:8000/api/auth/manage/users/${targetUser.id}/`, {
+      await axios.patch(`/api/auth/manage/users/${targetUser.id}/`, {
         is_admin: !targetUser.is_admin
       });
       setFeedback({ type: 'success', message: `Permissions updated for ${targetUser.username}.` });
@@ -186,7 +186,7 @@ export default function MasterControlPanel() {
       return;
     }
     try {
-      await axios.patch(`http://127.0.0.1:8000/api/auth/manage/users/${targetUser.id}/`, {
+      await axios.patch(`/api/auth/manage/users/${targetUser.id}/`, {
         reset_score: true
       });
       setFeedback({ type: 'success', message: `Readiness score and simulation attempts for ${targetUser.username} have been reset to 0%.` });
@@ -205,7 +205,7 @@ export default function MasterControlPanel() {
       return;
     }
     try {
-      await axios.delete(`http://127.0.0.1:8000/api/auth/manage/users/${targetUser.id}/`);
+      await axios.delete(`/api/auth/manage/users/${targetUser.id}/`);
       setFeedback({ type: 'success', message: `Account "${targetUser.username}" permanently deleted.` });
       fetchUsers();
     } catch (err) {
@@ -217,7 +217,7 @@ export default function MasterControlPanel() {
   const handleDeleteModule = async (mod) => {
     if (!window.confirm(`Delete module "${mod.title}"?`)) return;
     try {
-      await axios.delete(`http://127.0.0.1:8000/api/lms/modules/${mod.id}/`);
+      await axios.delete(`/api/lms/modules/${mod.id}/`);
       setFeedback({ type: 'success', message: `Module "${mod.title}" removed.` });
       fetchModules();
     } catch (err) {
@@ -228,7 +228,7 @@ export default function MasterControlPanel() {
   const handleDeleteRunbook = async (guide) => {
     if (!window.confirm(`Delete runbook "${guide.title}"?`)) return;
     try {
-      await axios.delete(`http://127.0.0.1:8000/api/lms/incident-guides/${guide.id}/`);
+      await axios.delete(`/api/lms/incident-guides/${guide.id}/`);
       setFeedback({ type: 'success', message: `Runbook "${guide.title}" removed.` });
       fetchRunbooks();
     } catch (err) {
@@ -239,7 +239,7 @@ export default function MasterControlPanel() {
   const handleDeleteQuestion = async (q) => {
     if (!window.confirm(`Delete question #${q.id}?`)) return;
     try {
-      await axios.delete(`http://127.0.0.1:8000/api/simulation/quiz/manage/questions/${q.id}/`);
+      await axios.delete(`/api/simulation/quiz/manage/questions/${q.id}/`);
       setFeedback({ type: 'success', message: `Question #${q.id} deleted.` });
       fetchQuestions();
     } catch (err) {
@@ -250,7 +250,7 @@ export default function MasterControlPanel() {
   const handleDeleteScenario = async (scen) => {
     if (!window.confirm(`Delete simulation scenario "${scen.subject}"?`)) return;
     try {
-      await axios.delete(`http://127.0.0.1:8000/api/simulation/emails/${scen.id}/`);
+      await axios.delete(`/api/simulation/emails/${scen.id}/`);
       setFeedback({ type: 'success', message: `Scenario "${scen.subject}" removed.` });
       fetchScenarios();
     } catch (err) {
@@ -261,7 +261,7 @@ export default function MasterControlPanel() {
   const handleDeleteContact = async (c) => {
     if (!window.confirm(`Delete contact "${c.name}"?`)) return;
     try {
-      await axios.delete(`http://127.0.0.1:8000/api/auth/contact/${c.id}/`);
+      await axios.delete(`/api/auth/contact/${c.id}/`);
       setFeedback({ type: 'success', message: `Contact "${c.name}" removed.` });
       fetchContacts();
     } catch (err) {
@@ -414,46 +414,46 @@ export default function MasterControlPanel() {
     try {
       if (modalType === 'module') {
         if (editingItem) {
-          await axios.put(`http://127.0.0.1:8000/api/lms/modules/${editingItem.id}/`, moduleForm);
+          await axios.put(`/api/lms/modules/${editingItem.id}/`, moduleForm);
           setFeedback({ type: 'success', message: 'Learning module updated successfully.' });
         } else {
-          await axios.post('http://127.0.0.1:8000/api/lms/modules/', moduleForm);
+          await axios.post('/api/lms/modules/', moduleForm);
           setFeedback({ type: 'success', message: 'New learning module created.' });
         }
         fetchModules();
       } else if (modalType === 'runbook') {
         if (editingItem) {
-          await axios.put(`http://127.0.0.1:8000/api/lms/incident-guides/${editingItem.id}/`, runbookForm);
+          await axios.put(`/api/lms/incident-guides/${editingItem.id}/`, runbookForm);
           setFeedback({ type: 'success', message: 'Runbook updated successfully.' });
         } else {
-          await axios.post('http://127.0.0.1:8000/api/lms/incident-guides/', runbookForm);
+          await axios.post('/api/lms/incident-guides/', runbookForm);
           setFeedback({ type: 'success', message: 'New runbook created.' });
         }
         fetchRunbooks();
       } else if (modalType === 'question') {
         if (editingItem) {
-          await axios.put(`http://127.0.0.1:8000/api/simulation/quiz/manage/questions/${editingItem.id}/`, questionForm);
+          await axios.put(`/api/simulation/quiz/manage/questions/${editingItem.id}/`, questionForm);
           setFeedback({ type: 'success', message: 'Quiz question updated.' });
         } else {
-          await axios.post('http://127.0.0.1:8000/api/simulation/quiz/manage/questions/', questionForm);
+          await axios.post('/api/simulation/quiz/manage/questions/', questionForm);
           setFeedback({ type: 'success', message: 'New quiz question added.' });
         }
         fetchQuestions();
       } else if (modalType === 'scenario') {
         if (editingItem) {
-          await axios.put(`http://127.0.0.1:8000/api/simulation/emails/${editingItem.id}/`, scenarioForm);
+          await axios.put(`/api/simulation/emails/${editingItem.id}/`, scenarioForm);
           setFeedback({ type: 'success', message: 'Simulation scenario updated.' });
         } else {
-          await axios.post('http://127.0.0.1:8000/api/simulation/emails/', scenarioForm);
+          await axios.post('/api/simulation/emails/', scenarioForm);
           setFeedback({ type: 'success', message: 'New simulation scenario added.' });
         }
         fetchScenarios();
       } else if (modalType === 'contact') {
         if (editingItem) {
-          await axios.put(`http://127.0.0.1:8000/api/auth/contact/${editingItem.id}/`, contactForm);
+          await axios.put(`/api/auth/contact/${editingItem.id}/`, contactForm);
           setFeedback({ type: 'success', message: 'Directory contact updated.' });
         } else {
-          await axios.post('http://127.0.0.1:8000/api/auth/contact/', contactForm);
+          await axios.post('/api/auth/contact/', contactForm);
           setFeedback({ type: 'success', message: 'New contact saved.' });
         }
         fetchContacts();

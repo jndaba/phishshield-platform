@@ -12,8 +12,9 @@ import {
   Layers
 } from 'lucide-react';
 import axios from 'axios';
+import { API_BASE_URL } from '../main';
 
-const SCANNER_API = 'http://127.0.0.1:8000/api/scanner/scan/';
+const SCANNER_API = '/api/scanner/scan/';
 
 export default function Scanner() {
   const [url, setUrl] = useState('');
@@ -64,7 +65,7 @@ export default function Scanner() {
         setError('The scan took too long. Please try again.');
       } else if (err.request) {
         setError(
-          'Cannot reach the PhishShield backend. Make sure Django is running at 127.0.0.1:8000.'
+          `Cannot reach the PhishShield backend at ${API_BASE_URL}. Please verify the server is online.`
         );
       } else {
         setError(err.message || 'Unable to scan this URL.');

@@ -23,7 +23,7 @@ export default function MemberRoster() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const res = await axios.get('http://127.0.0.1:8000/api/auth/manage/users/');
+      const res = await axios.get('/api/auth/manage/users/');
       setUsers(res.data || []);
     } catch (err) {
       console.error('Failed to load roster', err);
@@ -58,9 +58,9 @@ export default function MemberRoster() {
     e.preventDefault();
     try {
       if (editingUser) {
-        await axios.patch(`http://127.0.0.1:8000/api/auth/manage/users/${editingUser.id}/`, formData);
+        await axios.patch(`/api/auth/manage/users/${editingUser.id}/`, formData);
       } else {
-        await axios.post('http://127.0.0.1:8000/api/auth/manage/users/', formData);
+        await axios.post('/api/auth/manage/users/', formData);
       }
       setIsModalOpen(false);
       fetchUsers();
@@ -77,7 +77,7 @@ export default function MemberRoster() {
     if (!window.confirm(`Are you sure you want to permanently delete user ${targetUser.username}?`)) return;
 
     try {
-      await axios.delete(`http://127.0.0.1:8000/api/auth/manage/users/${targetUser.id}/`);
+      await axios.delete(`/api/auth/manage/users/${targetUser.id}/`);
       fetchUsers();
     } catch (err) {
       alert('Failed to delete member.');

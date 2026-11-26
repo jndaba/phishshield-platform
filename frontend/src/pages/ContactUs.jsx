@@ -41,7 +41,7 @@ export default function ContactUs() {
 
   const fetchContacts = () => {
     setLoading(true);
-    axios.get('http://127.0.0.1:8000/api/auth/contact/')
+    axios.get('/api/auth/contact/')
       .then((res) => {
         setContacts(res.data || []);
       })
@@ -89,10 +89,10 @@ export default function ContactUs() {
 
     try {
       if (editingContact) {
-        await axios.put(`http://127.0.0.1:8000/api/auth/contact/${editingContact.id}/`, formData);
+        await axios.put(`/api/auth/contact/${editingContact.id}/`, formData);
         setFeedback({ type: 'success', message: 'Contact details updated successfully.' });
       } else {
-        await axios.post('http://127.0.0.1:8000/api/auth/contact/', formData);
+        await axios.post('/api/auth/contact/', formData);
         setFeedback({ type: 'success', message: 'New contact added to directory.' });
       }
       setIsModalOpen(false);
@@ -113,7 +113,7 @@ export default function ContactUs() {
     }
 
     try {
-      await axios.delete(`http://127.0.0.1:8000/api/auth/contact/${contactId}/`);
+      await axios.delete(`/api/auth/contact/${contactId}/`);
       setFeedback({ type: 'success', message: `Contact "${name}" removed.` });
       fetchContacts();
     } catch (err) {

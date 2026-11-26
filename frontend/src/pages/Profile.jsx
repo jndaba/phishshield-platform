@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
+import { API_BASE_URL } from '../main';
 
 export default function Profile() {
   const { user: authUser, setUser } = useContext(AuthContext);
@@ -41,13 +42,13 @@ export default function Profile() {
 
   useEffect(() => {
     // 1. Fetch performance stats for progress review
-    axios.get('http://127.0.0.1:8000/api/auth/user-stats/')
+    axios.get('/api/auth/user-stats/')
       .then(res => setStats(res.data.stats))
       .catch(() => {});
 
     // 2. If admin, load member directory
     if (isAdmin) {
-      axios.get('http://127.0.0.1:8000/api/auth/manage/users/')
+      axios.get('/api/auth/manage/users/')
         .then(res => setRoster(res.data || []))
         .catch(() => {});
     }
@@ -74,7 +75,7 @@ export default function Profile() {
       if (formData.new_password) data.append('new_password', formData.new_password);
       if (avatarFile) data.append('avatar', avatarFile);
 
-      const res = await axios.patch('http://127.0.0.1:8000/api/auth/profile/update/', data, {
+      const res = await axios.patch('/api/auth/profile/update/', data, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
@@ -162,7 +163,7 @@ export default function Profile() {
                 <div className="relative">
                   {avatarPreview ? (
                     <img 
-                      src={avatarPreview.startsWith('blob:') || avatarPreview.startsWith('http') ? avatarPreview : `http://127.0.0.1:8000${avatarPreview}`}
+                      src={avatarPreview.startsWith('blob:') || avatarPreview.startsWith('http') ? avatarPreview : `${API_BASE_URL}${avatarPreview}`}
                       alt="Avatar Preview" 
                       className="w-16 h-16 rounded-full object-cover border-2 border-blue-600"
                     />

@@ -41,8 +41,8 @@ export default function ClientDashboard() {
     setLoading(true);
     try {
       const [modulesRes, inboxRes] = await Promise.all([
-        axios.get('http://127.0.0.1:8000/api/lms/modules/'),
-        axios.get('http://127.0.0.1:8000/api/simulation/inbox/')
+        axios.get('/api/lms/modules/'),
+        axios.get('/api/simulation/inbox/')
       ]);
 
       const modules = modulesRes.data || [];

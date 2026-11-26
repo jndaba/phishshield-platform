@@ -21,7 +21,7 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const res = await axios.post('http://127.0.0.1:8000/api/auth/login/', {
+      const res = await axios.post('/api/auth/login/', {
         username,
         password,
         admin_key: isAdminRole ? adminKey : ''

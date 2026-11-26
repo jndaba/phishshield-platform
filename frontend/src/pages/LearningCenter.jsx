@@ -12,8 +12,8 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 
-const MODULES_API = 'http://127.0.0.1:8000/api/lms/modules/';
-const PROGRESS_API = 'http://127.0.0.1:8000/api/lms/progress/';
+const MODULES_API = '/api/lms/modules/';
+const PROGRESS_API = '/api/lms/progress/';
 
 export default function LearningCenter() {
   const [modules, setModules] = useState([]);

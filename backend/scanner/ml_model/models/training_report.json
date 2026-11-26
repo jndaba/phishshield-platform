@@ -1,5 +1,5 @@
 {
-    "training_date": "2026-11-07T17:52:08",
+    "training_date": "2026-11-26T17:26:53",
     "dataset_path": "C:\\Users\\nali\\phishshield-platform\\backend\\scanner\\ml_model\\dataset\\phishing_site_urls.csv",
     "dataset_rows_used": 507071,
     "training_samples": 405656,
@@ -80,148 +80,149 @@
         ],
         "threshold": 0.5,
         "algorithm": "RandomForestClassifier",
-        "n_estimators": 200,
+        "n_estimators": 100,
+        "max_depth": 22,
         "random_state": 42,
-        "training_date": "2026-11-07T17:50:07"
+        "training_date": "2026-11-26T17:26:51"
     },
     "metrics": {
         "threshold": 0.5,
-        "accuracy": 0.936044963762757,
-        "precision": 0.8936180445342182,
-        "recall": 0.8129949682782761,
-        "f1": 0.8514021260997068,
-        "true_negatives": 76348,
-        "false_positives": 2212,
-        "false_negatives": 4274,
-        "true_positives": 18581,
-        "false_positive_rate": 0.02815682281059063,
+        "accuracy": 0.9268056993541389,
+        "precision": 0.9148387096774193,
+        "recall": 0.744519798731131,
+        "f1": 0.8209383669038717,
+        "true_negatives": 76976,
+        "false_positives": 1584,
+        "false_negatives": 5839,
+        "true_positives": 17016,
+        "false_positive_rate": 0.020162932790224034,
         "threshold_comparison": {
             "0.3": {
-                "precision": 0.7893695441319107,
-                "recall": 0.8902209582148326,
-                "f1": 0.8367674275138803,
-                "true_negatives": 73131,
-                "false_positives": 5429,
-                "false_negatives": 2509,
-                "true_positives": 20346
+                "precision": 0.7998602720585214,
+                "recall": 0.8515860861955808,
+                "f1": 0.8249131135034331,
+                "true_negatives": 73690,
+                "false_positives": 4870,
+                "false_negatives": 3392,
+                "true_positives": 19463
             },
             "0.35": {
-                "precision": 0.8223009432796474,
-                "recall": 0.8734631371691096,
-                "f1": 0.8471102435712468,
-                "true_negatives": 74246,
-                "false_positives": 4314,
-                "false_negatives": 2892,
-                "true_positives": 19963
+                "precision": 0.836850757542098,
+                "recall": 0.8241085101728287,
+                "f1": 0.8304307570212953,
+                "true_negatives": 74888,
+                "false_positives": 3672,
+                "false_negatives": 4020,
+                "true_positives": 18835
             },
             "0.4": {
-                "precision": 0.850594745327001,
-                "recall": 0.8541675782104572,
-                "f1": 0.8523774178055277,
-                "true_negatives": 75131,
-                "false_positives": 3429,
-                "false_negatives": 3333,
-                "true_positives": 19522
+                "precision": 0.8662840337728869,
+                "recall": 0.7990811638591118,
+                "f1": 0.8313266722807656,
+                "true_negatives": 75741,
+                "false_positives": 2819,
+                "false_negatives": 4592,
+                "true_positives": 18263
             },
             "0.45": {
-                "precision": 0.8734206189342612,
-                "recall": 0.8347845110479107,
-                "f1": 0.8536656301035818,
-                "true_negatives": 75795,
-                "false_positives": 2765,
-                "false_negatives": 3776,
-                "true_positives": 19079
+                "precision": 0.8907078975291799,
+                "recall": 0.7712973091227302,
+                "f1": 0.8267129390798668,
+                "true_negatives": 76397,
+                "false_positives": 2163,
+                "false_negatives": 5227,
+                "true_positives": 17628
             },
             "0.5": {
-                "precision": 0.8936180445342182,
-                "recall": 0.8129949682782761,
-                "f1": 0.8514021260997068,
-                "true_negatives": 76348,
-                "false_positives": 2212,
-                "false_negatives": 4274,
-                "true_positives": 18581
+                "precision": 0.9148387096774193,
+                "recall": 0.744519798731131,
+                "f1": 0.8209383669038717,
+                "true_negatives": 76976,
+                "false_positives": 1584,
+                "false_negatives": 5839,
+                "true_positives": 17016
             },
             "0.55": {
-                "precision": 0.9119531762450174,
-                "recall": 0.7908116385911179,
-                "f1": 0.8470731593007452,
-                "true_negatives": 76815,
-                "false_positives": 1745,
-                "false_negatives": 4781,
-                "true_positives": 18074
+                "precision": 0.9344983153446406,
+                "recall": 0.7159921242616495,
+                "f1": 0.810781350641629,
+                "true_negatives": 77413,
+                "false_positives": 1147,
+                "false_negatives": 6491,
+                "true_positives": 16364
             },
             "0.6": {
-                "precision": 0.9266821836648328,
-                "recall": 0.766484357908554,
-                "f1": 0.8390047654397854,
-                "true_negatives": 77174,
-                "false_positives": 1386,
-                "false_negatives": 5337,
-                "true_positives": 17518
+                "precision": 0.951982031202574,
+                "recall": 0.6861518267337563,
+                "f1": 0.7974979658258747,
+                "true_negatives": 77769,
+                "false_positives": 791,
+                "false_negatives": 7173,
+                "true_positives": 15682
             }
         }
     },
     "top_features": [
         {
             "feature": "suspicious_word_count",
-            "importance": 0.09810627938375562
+            "importance": 0.12074489929958267
         },
         {
             "feature": "tld_length",
-            "importance": 0.08741912671113242
-        },
-        {
-            "feature": "entropy",
-            "importance": 0.0706837308765662
-        },
-        {
-            "feature": "hostname_entropy",
-            "importance": 0.058451765181973904
+            "importance": 0.11848932309374251
         },
         {
             "feature": "digit_count",
-            "importance": 0.05780298679802106
-        },
-        {
-            "feature": "path_entropy",
-            "importance": 0.0561770294109695
+            "importance": 0.08066537795545611
         },
         {
             "feature": "dot_count",
-            "importance": 0.05496289457521362
-        },
-        {
-            "feature": "special_character_ratio",
-            "importance": 0.04840204079331513
+            "importance": 0.07599865265361355
         },
         {
             "feature": "slash_count",
-            "importance": 0.046658902572566406
-        },
-        {
-            "feature": "path_length",
-            "importance": 0.04638741374576558
-        },
-        {
-            "feature": "url_length",
-            "importance": 0.0387029547073841
+            "importance": 0.052224447969085847
         },
         {
             "feature": "path_digit_count",
-            "importance": 0.038497392914655544
-        },
-        {
-            "feature": "letter_count",
-            "importance": 0.03556977532137744
+            "importance": 0.04525418533387511
         },
         {
             "feature": "hostname_digit_count",
-            "importance": 0.03279130767974957
+            "importance": 0.04441015899204108
         },
         {
-            "feature": "hostname_letter_count",
-            "importance": 0.031629489313912205
+            "feature": "special_character_ratio",
+            "importance": 0.038301445250812284
+        },
+        {
+            "feature": "path_length",
+            "importance": 0.037929017909338454
+        },
+        {
+            "feature": "special_character_count",
+            "importance": 0.03453247286802708
+        },
+        {
+            "feature": "path_entropy",
+            "importance": 0.03309197123161926
+        },
+        {
+            "feature": "url_length",
+            "importance": 0.03273653794449154
+        },
+        {
+            "feature": "hyphen_count",
+            "importance": 0.032130642507291696
+        },
+        {
+            "feature": "entropy",
+            "importance": 0.031749219572398554
+        },
+        {
+            "feature": "hostname_entropy",
+            "importance": 0.027031902606001017
         }
     ],
-    "execution_time_seconds": 372.35
+    "execution_time_seconds": 157.74
 }

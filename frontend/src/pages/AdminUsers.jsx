@@ -22,7 +22,7 @@ export default function AdminUsers() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const res = await axios.get('http://127.0.0.1:8000/api/auth/manage/users/');
+      const res = await axios.get('/api/auth/manage/users/');
       setUsers(res.data || []);
     } catch (err) {
       console.error('Failed to load users', err);
@@ -58,10 +58,10 @@ export default function AdminUsers() {
     try {
       if (editingUser) {
         // Edit existing member
-        await axios.patch(`http://127.0.0.1:8000/api/auth/manage/users/${editingUser.id}/`, formData);
+        await axios.patch(`/api/auth/manage/users/${editingUser.id}/`, formData);
       } else {
         // Create new user
-        await axios.post('http://127.0.0.1:8000/api/auth/manage/users/', formData);
+        await axios.post('/api/auth/manage/users/', formData);
       }
       setIsModalOpen(false);
       fetchUsers();
@@ -78,7 +78,7 @@ export default function AdminUsers() {
     if (!window.confirm(`Delete user ${targetUser.username}?`)) return;
 
     try {
-      await axios.delete(`http://127.0.0.1:8000/api/auth/manage/users/${targetUser.id}/`);
+      await axios.delete(`/api/auth/manage/users/${targetUser.id}/`);
       fetchUsers();
     } catch (err) {
       alert('Failed to delete user.');

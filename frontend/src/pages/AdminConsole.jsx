@@ -53,10 +53,10 @@ export default function AdminConsole() {
     setLoading(true);
     try {
       const [usersRes, modulesRes, inboxRes, questionsRes] = await Promise.all([
-        axios.get('http://127.0.0.1:8000/api/auth/manage/users/'),
-        axios.get('http://127.0.0.1:8000/api/lms/modules/'),
-        axios.get('http://127.0.0.1:8000/api/simulation/inbox/'),
-        axios.get('http://127.0.0.1:8000/api/simulation/quiz/questions/')
+        axios.get('/api/auth/manage/users/'),
+        axios.get('/api/lms/modules/'),
+        axios.get('/api/simulation/inbox/'),
+        axios.get('/api/simulation/quiz/questions/')
       ]);
 
       const users = usersRes.data || [];
@@ -125,7 +125,7 @@ export default function AdminConsole() {
     formData.append('document', droppedFile);
 
     try {
-      await axios.put(`http://127.0.0.1:8000/api/lms/modules/${selectedModuleForUpload}/`, formData, {
+      await axios.put(`/api/lms/modules/${selectedModuleForUpload}/`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       setUploadStatus({ type: 'success', message: `Successfully attached ${droppedFile.name} to Module ${selectedModuleForUpload}.` });

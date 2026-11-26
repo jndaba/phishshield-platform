@@ -47,7 +47,7 @@ export default function RecoveryGuide() {
   // Fetch Guides
   const fetchGuides = () => {
     setLoading(true);
-    axios.get('http://127.0.0.1:8000/api/lms/incident-guides/')
+    axios.get('/api/lms/incident-guides/')
       .then((res) => {
         setGuides(res.data || []);
         if (res.data?.length > 0 && !expandedGuideId) {
@@ -101,10 +101,10 @@ export default function RecoveryGuide() {
 
     try {
       if (editingGuide) {
-        await axios.put(`http://127.0.0.1:8000/api/lms/incident-guides/${editingGuide.id}/`, formData);
+        await axios.put(`/api/lms/incident-guides/${editingGuide.id}/`, formData);
         setNotification({ type: 'success', message: 'Incident guide updated successfully.' });
       } else {
-        await axios.post('http://127.0.0.1:8000/api/lms/incident-guides/', formData);
+        await axios.post('/api/lms/incident-guides/', formData);
         setNotification({ type: 'success', message: 'New incident guide published successfully.' });
       }
       setIsModalOpen(false);
@@ -125,7 +125,7 @@ export default function RecoveryGuide() {
       return;
     }
     try {
-      await axios.delete(`http://127.0.0.1:8000/api/lms/incident-guides/${guideId}/`);
+      await axios.delete(`/api/lms/incident-guides/${guideId}/`);
       setNotification({ type: 'success', message: `Guide "${title}" removed successfully.` });
       fetchGuides();
     } catch (err) {
