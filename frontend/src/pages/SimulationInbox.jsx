@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { 
   Inbox, 
   ShieldAlert, 
@@ -10,8 +10,10 @@ import {
   RefreshCw
 } from 'lucide-react';
 import axios from 'axios';
+import { AuthContext } from '../context/AuthContext';
 
 export default function SimulationInbox() {
+  const { setUser } = useContext(AuthContext);
   const [scenarios, setScenarios] = useState([]);
   const [activeScenario, setActiveScenario] = useState(null);
   const [stats, setStats] = useState({ total: 10, completed: 0, correct: 0, accuracy: 0 });
@@ -86,21 +88,28 @@ export default function SimulationInbox() {
       );
 
       setFeedbackData(res.data);
+
+      const updatedSubmission = {
+        user_choice_is_phishing: isPhishingVerdict,
+        is_correct: res.data.is_correct,
+        attempted_at: 'Just now'
+      };
+
+      setActiveScenario((prev) => (prev ? { ...prev, user_submission: updatedSubmission } : prev));
       setScenarios((prev) =>
-        prev.map((s) => {
-          if (s.id === activeScenario.id) {
-            return {
-              ...s,
-              user_submission: {
-                user_choice_is_phishing: isPhishingVerdict,
-                is_correct: res.data.is_correct,
-                attempted_at: 'Just now'
-              }
-            };
-          }
-          return s;
-        })
+        prev.map((s) => (s.id === activeScenario.id ? { ...s, user_submission: updatedSubmission } : s))
       );
+
+      if (setUser && res.data?.readiness_score !== undefined) {
+        const newScore = Number(res.data.readiness_score);
+        setUser((prev) => {
+          if (!prev) return prev;
+          const updated = { ...prev, readiness_score: newScore };
+          localStorage.setItem('user', JSON.stringify(updated));
+          return updated;
+        });
+      }
+      window.dispatchEvent(new Event('readiness-updated'));
 
       const statsRes = await axios.get('/api/simulation/inbox/');
       setStats(statsRes.data?.stats || stats);
@@ -112,9 +121,9 @@ export default function SimulationInbox() {
   };
 
   return (
-    <div className="h-[calc(100vh-2rem)] bg-slate-50 text-slate-900 p-4 sm:p-6 flex flex-col space-y-4">
+    <div className="min-h-[calc(100vh-3.5rem)] md:h-[calc(100vh-2rem)] bg-slate-50 text-slate-900 p-4 sm:p-6 flex flex-col space-y-4">
       {/* Header Banner */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="p-2 rounded-xl bg-blue-50 border border-blue-200 text-blue-950 shadow-xs">
@@ -133,7 +142,7 @@ export default function SimulationInbox() {
         </div>
 
         {/* Aggregate Stats Card */}
-        <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 p-2.5 rounded-2xl">
+        <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 p-2.5 rounded-2xl self-stretch md:self-auto justify-around">
           <div className="text-center px-2">
             <span className="block text-[10px] uppercase font-bold text-slate-400">Completed</span>
             <strong className="text-xs font-black text-slate-800">{stats.completed} / {stats.total}</strong>
@@ -149,7 +158,7 @@ export default function SimulationInbox() {
       <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-4 min-h-0">
         
         {/* Scenario List */}
-        <div className="md:col-span-4 bg-white border border-slate-200 rounded-2xl p-3.5 shadow-xs flex flex-col min-h-0">
+        <div className="md:col-span-4 bg-white border border-slate-200 rounded-2xl p-3.5 shadow-xs flex flex-col max-h-72 md:max-h-none min-h-0">
           <div className="pb-2.5 mb-2 border-b border-slate-100 flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
               <Mail className="w-4 h-4 text-blue-950" />
@@ -224,13 +233,13 @@ export default function SimulationInbox() {
         <div className="md:col-span-8 bg-white border border-slate-200 rounded-2xl shadow-xs flex flex-col min-h-0 overflow-hidden">
           {activeScenario ? (
             <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
-              <div className="p-5 border-b border-slate-100 bg-slate-50/70 space-y-3 shrink-0">
+              <div className="p-4 sm:p-5 border-b border-slate-100 bg-slate-50/70 space-y-3 shrink-0">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h2 className="text-base sm:text-lg font-bold text-slate-900 leading-snug">
                       {activeScenario.subject}
                     </h2>
-                    <div className="flex items-center gap-2 mt-1">
+                    <div className="flex flex-wrap items-center gap-2 mt-1">
                       <span className="text-[11px] font-bold text-blue-950 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200">
                         {activeScenario.threat_category}
                       </span>
@@ -242,19 +251,19 @@ export default function SimulationInbox() {
                 </div>
 
                 <div className="space-y-1.5 pt-2 border-t border-slate-200/60 text-xs text-slate-600">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="text-[11px] font-bold text-slate-400 w-12">From:</span>
                     <strong className="text-slate-800">{activeScenario.sender_display_name}</strong>
-                    <span className="text-slate-500 font-mono text-[11px]">&lt;{activeScenario.sender_email}&gt;</span>
+                    <span className="text-slate-500 font-mono text-[11px] break-all">&lt;{activeScenario.sender_email}&gt;</span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="text-[11px] font-bold text-slate-400 w-12">To:</span>
-                    <span className="text-slate-700 font-mono text-[11px]">{activeScenario.recipient_email}</span>
+                    <span className="text-slate-700 font-mono text-[11px] break-all">{activeScenario.recipient_email}</span>
                   </div>
                 </div>
               </div>
 
-              <div className="p-6 flex-1 bg-white">
+              <div className="p-4 sm:p-6 flex-1 bg-white">
                 <div 
                   className="prose prose-sm max-w-none text-xs sm:text-sm text-slate-800 leading-relaxed"
                   dangerouslySetInnerHTML={{ __html: activeScenario.body_html }}
@@ -262,8 +271,8 @@ export default function SimulationInbox() {
               </div>
 
               {/* Action Board */}
-              <div className="p-5 border-t border-slate-200 bg-slate-50 space-y-4 shrink-0">
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="p-4 sm:p-5 border-t border-slate-200 bg-slate-50 space-y-4 shrink-0">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   <div className="text-xs text-slate-600">
                     <strong className="text-slate-900 block font-bold">Your Security Verdict:</strong>
                     <span>Does this email exhibit signs of social engineering or deception?</span>

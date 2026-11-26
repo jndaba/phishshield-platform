@@ -1,5 +1,5 @@
-import React, { useContext, useEffect, useState } from 'react';
-import { NavLink, Link, useNavigate } from 'react-router-dom';
+import React, { useContext, useEffect, useState, useCallback } from 'react';
+import { NavLink, Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   ShieldAlert, 
   LayoutDashboard, 
@@ -29,39 +29,57 @@ function resolveAvatarSrc(src) {
 export default function LearnerSidebar() {
   const { user, setUser, logout } = useContext(AuthContext);
   const navigate = useNavigate();
-  const [liveScore, setLiveScore] = useState(user?.readiness_score ?? 0);
+  const location = useLocation();
+  const [liveScore, setLiveScore] = useState(() => Number(user?.readiness_score ?? 0));
 
   useEffect(() => {
-    if (user?.readiness_score !== undefined) {
-      setLiveScore(user.readiness_score);
+    if (user?.readiness_score !== undefined && user?.readiness_score !== null) {
+      setLiveScore(Number(user.readiness_score));
     }
   }, [user?.readiness_score]);
 
-  useEffect(() => {
-    let isMounted = true;
-    axios.get('/api/auth/user-stats/')
-      .then((res) => {
-        if (!isMounted || !res.data?.user) return;
-        const serverScore = res.data.user.readiness_score ?? 0;
-        setLiveScore(serverScore);
-        if (setUser) {
-          setUser((prev) => {
-            if (!prev) return prev;
-            if (prev.readiness_score === serverScore && prev.avatar === res.data.user.avatar) {
-              return prev;
-            }
-            const updated = { ...prev, ...res.data.user };
-            localStorage.setItem('user', JSON.stringify(updated));
-            return updated;
-          });
-        }
-      })
-      .catch(() => {});
+  const syncReadinessFromServer = useCallback(async () => {
+    try {
+      const res = await axios.get('/api/auth/user-stats/');
+      const serverUser = res.data?.user;
+      if (!serverUser) return;
 
+      const serverScore = Number(serverUser.readiness_score ?? 0);
+      setLiveScore(serverScore);
+
+      if (setUser) {
+        setUser((prev) => {
+          if (!prev) return prev;
+          if (
+            Number(prev.readiness_score) === serverScore &&
+            prev.avatar === serverUser.avatar &&
+            prev.username === serverUser.username
+          ) {
+            return prev;
+          }
+          const updated = { ...prev, ...serverUser, readiness_score: serverScore };
+          localStorage.setItem('user', JSON.stringify(updated));
+          return updated;
+        });
+      }
+    } catch {
+      // Retain existing score if request fails
+    }
+  }, [setUser]);
+
+  // Re-sync whenever the user navigates between pages (e.g., Simulation -> Dashboard) or refocuses tab
+  useEffect(() => {
+    syncReadinessFromServer();
+  }, [location.pathname, syncReadinessFromServer]);
+
+  useEffect(() => {
+    window.addEventListener('focus', syncReadinessFromServer);
+    window.addEventListener('readiness-updated', syncReadinessFromServer);
     return () => {
-      isMounted = false;
+      window.removeEventListener('focus', syncReadinessFromServer);
+      window.removeEventListener('readiness-updated', syncReadinessFromServer);
     };
-  }, []);
+  }, [syncReadinessFromServer]);
 
   const handleLogout = () => {
     logout();
